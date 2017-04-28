@@ -3,3 +3,4 @@ go/
 *.gz
 go1.8/
 pkg/
+*.exe
