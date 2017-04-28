@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/xml"
 	"fmt"
 	"io"
 	"log"
@@ -9,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Juniper/go-netconf/netconf"
 	"github.com/chzyer/readline"
 	"github.com/openconfig/goyang/pkg/yang"
 )
@@ -16,6 +18,7 @@ import (
 var completer = readline.NewPrefixCompleter(readline.PcItem("get", readline.PcItemDynamic(listYang("./"))))
 
 func listYang(path string) func(string) []string {
+	println("Outer func called")
 	return func(line string) []string {
 		names := make([]string, 0)
 		/*files, _ := ioutil.ReadDir(path)
@@ -111,4 +114,13 @@ func main() {
 		}
 	}
 
+	var NetconfPath = "Cisco-IOS-XR-shellutil-cfg.host-names.host-name"
+
+	println(netconf.MethodGetConfig(NetconfPath))
+	//xml, err := xml.Marshal(map[int]string{1: "host-names", 2: "host-name"})
+	xml, err := xml.Marshal(entries[0])
+	if err != nil {
+		fmt.Printf("error: %v\n", err)
+	}
+	os.Stdout.Write(xml)
 }
