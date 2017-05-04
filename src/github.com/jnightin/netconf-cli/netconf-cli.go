@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -16,6 +17,67 @@ import (
 )
 
 var completer = readline.NewPrefixCompleter(readline.PcItem("get", readline.PcItemDynamic(listYang("./"))))
+
+type netconfRequest struct {
+	ncEntry     yang.Entry
+	NetConfPath []string
+	Value       string
+}
+
+func newNetconfRequest(netconfEntry yang.Entry, Path []string, value string) *netconfRequest {
+	return &netconfRequest{
+		NetConfPath: Path,
+		ncEntry:     netconfEntry,
+		Value:       value,
+	}
+}
+
+func emitNestedXML(enc *xml.Encoder, paths []string, value string) {
+	start3 := xml.StartElement{Name: xml.Name{Local: paths[0]}}
+	err := enc.EncodeToken(start3)
+	if err != nil {
+		fmt.Println(err)
+	}
+	if len(paths) > 1 {
+		emitNestedXML(enc, paths[1:], "")
+	} else if value != "" {
+		enc.EncodeToken(xml.CharData(value))
+	}
+	err = enc.EncodeToken(start3.End())
+	if err != nil {
+		fmt.Println(err)
+	}
+}
+
+func (nc *netconfRequest) MarshalMethod() string {
+	var buf bytes.Buffer
+	enc := xml.NewEncoder(&buf)
+
+	enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "edit-config"}})
+
+	emitNestedXML(enc, []string{"target", "candidate"}, "")
+
+	enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "config"}})
+
+	start2 := xml.StartElement{Name: xml.Name{Local: nc.NetConfPath[0], Space: nc.ncEntry.Namespace().Name}}
+	fmt.Println(start2)
+	err := enc.EncodeToken(start2)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	emitNestedXML(enc, nc.NetConfPath[1:], nc.Value)
+
+	err = enc.EncodeToken(start2.End())
+	if err != nil {
+		fmt.Println(err)
+	}
+	enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "config"}})
+	enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "edit-config"}})
+	enc.Flush()
+
+	return buf.String()
+}
 
 func listYang(path string) func(string) []string {
 	println("Outer func called")
@@ -90,19 +152,11 @@ func main() {
 		line, err := l.Readline()
 		if err == readline.ErrInterrupt {
 			if len(line) == 0 {
-				println("Error!")
-				println("Error!")
-				println("Error!")
-				println("Error!")
-				println("Error!")
 				break
 			} else {
 				continue
 			}
 		} else if err == io.EOF {
-			println("Error!")
-			println("Error!")
-			println("Error!")
 			break
 		}
 
@@ -118,9 +172,26 @@ func main() {
 
 	println(netconf.MethodGetConfig(NetconfPath))
 	//xml, err := xml.Marshal(map[int]string{1: "host-names", 2: "host-name"})
-	xml, err := xml.Marshal(entries[0])
+	xml2, err := xml.Marshal(entries[0])
 	if err != nil {
 		fmt.Printf("error: %v\n", err)
 	}
-	os.Stdout.Write(xml)
+	os.Stdout.Write(xml2)
+	println()
+
+	ncRequest := newNetconfRequest(*entries[0], []string{"host-names", "host-name"}, "CCV-invalid-hostname")
+	rpc := netconf.NewRPCMessage([]netconf.RPCMethod{ncRequest})
+	xml2, err = xml.Marshal(rpc)
+	os.Stdout.Write(xml2)
+	println()
+
+	s, err := netconf.DialTelnet("localhost:5555", "lab", "lab", nil)
+	if err != nil {
+		panic(err)
+	}
+
+	defer s.Close()
+
+	fmt.Printf("Server Capabilities: '%+v'\n", s.ServerCapabilities)
+	fmt.Printf("Session Id: %d\n\n", s.SessionID)
 }
