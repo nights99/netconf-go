@@ -172,16 +172,16 @@ func main() {
 
 	println(netconf.MethodGetConfig(NetconfPath))
 	//xml, err := xml.Marshal(map[int]string{1: "host-names", 2: "host-name"})
-	xml2, err := xml.Marshal(entries[0])
+	//xml2, err := xml.Marshal(entries[0])
 	if err != nil {
 		fmt.Printf("error: %v\n", err)
 	}
-	os.Stdout.Write(xml2)
-	println()
+	//os.Stdout.Write(xml2)
+	//println()
 
 	ncRequest := newNetconfRequest(*entries[0], []string{"host-names", "host-name"}, "CCV-invalid-hostname")
 	rpc := netconf.NewRPCMessage([]netconf.RPCMethod{ncRequest})
-	xml2, err = xml.Marshal(rpc)
+	xml2, err := xml.Marshal(rpc)
 	os.Stdout.Write(xml2)
 	println()
 
