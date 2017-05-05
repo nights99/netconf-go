@@ -198,6 +198,7 @@ func main() {
 
 	defer s.Close()
 
-	fmt.Printf("Server Capabilities: '%+v'\n", s.ServerCapabilities)
+	//fmt.Printf("Server Capabilities: '%+v'\n", s.ServerCapabilities)
 	fmt.Printf("Session Id: %d\n\n", s.SessionID)
+	s.Exec(ncRequest)
 }
