@@ -57,7 +57,7 @@ func (nc *netconfRequest) MarshalMethod() string {
 
 	emitNestedXML(enc, []string{"target", "candidate"}, "")
 
-	enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "config"}})
+	enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "config", Space: "urn:ietf:params:xml:ns:netconf:base:1.0"}})
 
 	start2 := xml.StartElement{Name: xml.Name{Local: nc.NetConfPath[0], Space: nc.ncEntry.Namespace().Name}}
 	fmt.Println(start2)
@@ -72,8 +72,14 @@ func (nc *netconfRequest) MarshalMethod() string {
 	if err != nil {
 		fmt.Println(err)
 	}
-	enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "config"}})
-	enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "edit-config"}})
+	err = enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "config", Space: "urn:ietf:params:xml:ns:netconf:base:1.0"}})
+	if err != nil {
+		fmt.Println(err)
+	}
+	err = enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "edit-config"}})
+	if err != nil {
+		fmt.Println(err)
+	}
 	enc.Flush()
 
 	return buf.String()
@@ -185,7 +191,7 @@ func main() {
 	os.Stdout.Write(xml2)
 	println()
 
-	s, err := netconf.DialTelnet("localhost:5555", "lab", "lab", nil)
+	s, err := netconf.DialTelnet("localhost:34392", "lab", "lab", nil)
 	if err != nil {
 		panic(err)
 	}
