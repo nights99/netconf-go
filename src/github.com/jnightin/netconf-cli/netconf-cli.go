@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/xml"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -21,7 +22,7 @@ var mod_names []string
 
 var mods = map[string]*yang.Module{}
 
-var completer = readline.NewPrefixCompleter(readline.PcItem("get", readline.PcItemDynamic(listYang)))
+var completer = readline.NewPrefixCompleter(readline.PcItem("set", readline.PcItemDynamic(listYang)), readline.PcItem("validate"))
 
 type netconfRequest struct {
 	ncEntry     yang.Entry
@@ -151,6 +152,22 @@ func listYang(path string) []string {
 
 func main() {
 
+    // Parse args
+    var port = flag.Int("port", 10555, "Port number to connect to")
+    flag.Parse()
+
+    // Connect to the node
+    s, err := netconf.DialTelnet("localhost:" + strconv.Itoa(*port), "lab", "lab", nil)
+    if err != nil {
+        panic(err)
+    }
+
+    defer s.Close()
+
+    //fmt.Printf("Server Capabilities: '%+v'\n", s.ServerCapabilities)
+    fmt.Printf("Session Id: %d\n\n", s.SessionID)
+
+
 	ms := yang.NewModules()
 
 	if err := ms.Read("Cisco-IOS-XR-shellutil-cfg.yang"); err != nil {
@@ -219,26 +236,13 @@ func main() {
 
 		line = strings.TrimSpace(line)
 		switch {
-        case strings.HasPrefix(line, "get"):
+        case strings.HasPrefix(line, "set"):
             request_line = line
             break
 		default:
 			log.Println("you said:", strconv.Quote(line))
 		}
 	}
-
-	//var NetconfPath = "Cisco-IOS-XR-shellutil-cfg.host-names.host-name"
-
-	//println("Foo: " + netconf.MethodGetConfig(NetconfPath))
-	//xml, err := xml.Marshal(map[int]string{1: "host-names", 2: "host-name"})
-	//xml2, err := xml.Marshal(entries[0])
-	//if err != nil {
-		//fmt.Printf("error: %v\n", err)
-	//}
-	//os.Stdout.Write(xml2)
-	//println()
-
-    //fmt.Printf("line: %v\n", request_line)
 
     slice := strings.Split(request_line, " ")
 
@@ -251,17 +255,6 @@ func main() {
 	os.Stdout.Write(xml2)
 	println()
 
-	s, err := netconf.DialTelnet("localhost:10555", "lab", "lab", nil)
-	if err != nil {
-		panic(err)
-	}
-
-	defer s.Close()
-
-    //s.Transport.(TransportTelnet).telnetConn
-
-	//fmt.Printf("Server Capabilities: '%+v'\n", s.ServerCapabilities)
-	fmt.Printf("Session Id: %d\n\n", s.SessionID)
 	reply, error := s.Exec(ncRequest)
 
     fmt.Printf("Request reply: %v, error: %v\n", reply, error)
@@ -288,5 +281,5 @@ func main() {
      <identifier>Cisco-IOS-XR-shellutil-cfg</identifier>
          </get-schema>
      `))
-    fmt.Printf("Request reply: %v, error: %v\n", reply.Data, error)
+    //fmt.Printf("Request reply: %v, error: %v\n", reply.Data, error)
 }
