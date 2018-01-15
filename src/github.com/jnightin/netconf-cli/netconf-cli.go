@@ -31,26 +31,26 @@ type netconfRequest struct {
 }
 
 type schemaJ struct {
-    Identifier  string  `xml:"identifier"`
-    Version     string  `xml:"version"`
-    Format      string  `xml:"format"`
-    Namespace   string  `xml:"namespace"`
-    //Location    string  `xml:"location"`
+	Identifier string `xml:"identifier"`
+	Version    string `xml:"version"`
+	Format     string `xml:"format"`
+	Namespace  string `xml:"namespace"`
+	//Location    string  `xml:"location"`
 }
 
 type schemaReply3 struct {
 	XMLName xml.Name
-    Schemas []schemaJ    `xml:"schema"`
+	Schemas []schemaJ `xml:"schema"`
 }
 
 type schemaReply2 struct {
 	XMLName xml.Name
-    Rest schemaReply3 `xml:"schemas"`
+	Rest    schemaReply3 `xml:"schemas"`
 }
 
 type schemaReply struct {
-	XMLName xml.Name    `xml:"data"`
-    Rest schemaReply2 `xml:"netconf-state"`
+	XMLName xml.Name     `xml:"data"`
+	Rest    schemaReply2 `xml:"netconf-state"`
 }
 
 func newNetconfRequest(netconfEntry yang.Entry, Path []string, value string) *netconfRequest {
@@ -116,69 +116,66 @@ func (nc *netconfRequest) MarshalMethod() string {
 }
 
 func listYang(path string) []string {
-    //fmt.Printf("\nlistYang called on path: %s\n", path)
-    names := make([]string, 0)
-    /*files, _ := ioutil.ReadDir(path)
-    for _, f := range files {
-        names = append(names, f.Name())
-    }
-    return names*/
+	//fmt.Printf("\nlistYang called on path: %s\n", path)
+	names := make([]string, 0)
+	/*files, _ := ioutil.ReadDir(path)
+	  for _, f := range files {
+	      names = append(names, f.Name())
+	  }
+	  return names*/
 
-
-    tokens := strings.Split(path, " ")
+	tokens := strings.Split(path, " ")
 	//fmt.Printf("tokens: %v\n", tokens)
 
-    if  len(tokens) > 2 {
-        // We have a module name
-        mod := mods[tokens[1]]
-        if  len(tokens) > 3 {
-            entry := yang.ToEntry(mod).Dir[tokens[2]]
-            for s, _ := range entry.Dir {
-                names = append(names, tokens[1] + " " + tokens[2] + " " + s)
-            }
-        } else {
-            for s, _ := range yang.ToEntry(mod).Dir {
-                names = append(names, tokens[1] + " " + s)
-            }
-        }
-        //fmt.Printf("names: %v\n", names)
-    } else {
-        //names = append(names, "hostname")
-        //names = append(names, mod_names[0])
-        names = mod_names
-    }
-    return names
+	if len(tokens) > 2 {
+		// We have a module name
+		mod := mods[tokens[1]]
+		if len(tokens) > 3 {
+			entry := yang.ToEntry(mod).Dir[tokens[2]]
+			for s := range entry.Dir {
+				names = append(names, tokens[1]+" "+tokens[2]+" "+s)
+			}
+		} else {
+			for s := range yang.ToEntry(mod).Dir {
+				names = append(names, tokens[1]+" "+s)
+			}
+		}
+		//fmt.Printf("names: %v\n", names)
+	} else {
+		//names = append(names, "hostname")
+		//names = append(names, mod_names[0])
+		names = mod_names
+	}
+	return names
 }
 
 func main() {
 
-    // Parse args
-    var port = flag.Int("port", 10555, "Port number to connect to")
-    flag.Parse()
+	// Parse args
+	var port = flag.Int("port", 10555, "Port number to connect to")
+	flag.Parse()
 
-    // Connect to the node
-    s, err := netconf.DialTelnet("localhost:" + strconv.Itoa(*port), "lab", "lab", nil)
-    if err != nil {
-        panic(err)
-    }
+	// Connect to the node
+	s, err := netconf.DialTelnet("localhost:"+strconv.Itoa(*port), "lab", "lab", nil)
+	if err != nil {
+		panic(err)
+	}
 
-    defer s.Close()
+	defer s.Close()
 
-    //fmt.Printf("Server Capabilities: '%+v'\n", s.ServerCapabilities)
-    fmt.Printf("Session Id: %d\n\n", s.SessionID)
-
+	//fmt.Printf("Server Capabilities: '%+v'\n", s.ServerCapabilities)
+	fmt.Printf("Session Id: %d\n\n", s.SessionID)
 
 	ms := yang.NewModules()
 
 	if err := ms.Read("Cisco-IOS-XR-shellutil-cfg.yang"); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
-    if err := ms.Read("Cisco-IOS-XR-cdp-cfg.yang"); err != nil {
-        fmt.Fprintln(os.Stderr, err)
-    }
+	if err := ms.Read("Cisco-IOS-XR-cdp-cfg.yang"); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
 
 	//fmt.Printf("%v\n", ms)
-
 
 	for _, m := range ms.Modules {
 		if mods[m.Name] == nil {
@@ -187,7 +184,7 @@ func main() {
 		}
 	}
 	sort.Strings(mod_names)
-    //println(mod_names)
+	//println(mod_names)
 	fmt.Printf("names: %v\n", mod_names)
 	entries := make([]*yang.Entry, len(mod_names))
 	for x, n := range mod_names {
@@ -220,7 +217,7 @@ func main() {
 	}
 	defer l.Close()
 	log.SetOutput(l.Stderr())
-    var request_line string
+	var request_line string
 	for {
 		println("In loop")
 		line, err := l.Readline()
@@ -236,50 +233,50 @@ func main() {
 
 		line = strings.TrimSpace(line)
 		switch {
-        case strings.HasPrefix(line, "set"):
-            request_line = line
-            break
+		case strings.HasPrefix(line, "set"):
+			request_line = line
+			break
 		default:
 			log.Println("you said:", strconv.Quote(line))
 		}
 	}
 
-    slice := strings.Split(request_line, " ")
+	slice := strings.Split(request_line, " ")
 
-    //ncRequest := newNetconfRequest(*entries[0], []string{"host-names", "host-name"}, "CCV-invalid-hostname")
-    ncRequest := newNetconfRequest(*yang.ToEntry(mods[slice[1]]), slice[2:len(slice) - 1], slice[len(slice) - 1])
-    fmt.Printf("ncRequest: %v\n", ncRequest)
+	//ncRequest := newNetconfRequest(*entries[0], []string{"host-names", "host-name"}, "CCV-invalid-hostname")
+	ncRequest := newNetconfRequest(*yang.ToEntry(mods[slice[1]]), slice[2:len(slice)-1], slice[len(slice)-1])
+	fmt.Printf("ncRequest: %v\n", ncRequest)
 
-    rpc := netconf.NewRPCMessage([]netconf.RPCMethod{ncRequest})
+	rpc := netconf.NewRPCMessage([]netconf.RPCMethod{ncRequest})
 	xml2, err := xml.MarshalIndent(rpc, "", "  ")
 	os.Stdout.Write(xml2)
 	println()
 
 	reply, error := s.Exec(ncRequest)
 
-    fmt.Printf("Request reply: %v, error: %v\n", reply, error)
+	fmt.Printf("Request reply: %v, error: %v\n", reply, error)
 
-    println("Request sent!")
+	println("Request sent!")
 
-    reply, error = s.Exec(netconf.RawMethod("<validate><source><candidate/></source></validate>"))
-    fmt.Printf("Request reply: %v, error: %v\n", reply, error)
+	reply, error = s.Exec(netconf.RawMethod("<validate><source><candidate/></source></validate>"))
+	fmt.Printf("Request reply: %v, error: %v\n", reply, error)
 
-    reply, error = s.Exec(netconf.RawMethod(`<get>
+	reply, error = s.Exec(netconf.RawMethod(`<get>
     <filter type="subtree">
       <netconf-state xmlns="urn:ietf:params:xml:ns:yang:ietf-netconf-monitoring">
         <schemas/>
       </netconf-state>
     </filter>
     </get>`))
-    //fmt.Printf("Request reply: %v, error: %v\n", reply.Data, error)
-    schemaReply := schemaReply{}
-    err = xml.Unmarshal([]byte(reply.Data), &schemaReply)
-    fmt.Printf("Request reply: %v, error: %v\n", schemaReply.Rest.Rest.Schemas[0], err)
+	//fmt.Printf("Request reply: %v, error: %v\n", reply.Data, error)
+	schemaReply := schemaReply{}
+	err = xml.Unmarshal([]byte(reply.Data), &schemaReply)
+	fmt.Printf("Request reply: %v, error: %v\n", schemaReply.Rest.Rest.Schemas[0], err)
 
-    reply, error = s.Exec(netconf.RawMethod(`<get-schema
+	reply, error = s.Exec(netconf.RawMethod(`<get-schema
          xmlns="urn:ietf:params:xml:ns:yang:ietf-netconf-monitoring">
      <identifier>Cisco-IOS-XR-shellutil-cfg</identifier>
          </get-schema>
      `))
-    //fmt.Printf("Request reply: %v, error: %v\n", reply.Data, error)
+	//fmt.Printf("Request reply: %v, error: %v\n", reply.Data, error)
 }
