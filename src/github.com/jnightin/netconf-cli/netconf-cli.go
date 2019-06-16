@@ -15,12 +15,18 @@ import (
 	"github.com/Juniper/go-netconf/netconf"
 	"github.com/chzyer/readline"
 	"github.com/openconfig/goyang/pkg/yang"
+	"golang.org/x/crypto/ssh"
 )
 
 // Array of available Yang modules
 var mod_names []string
 
 var mods = map[string]*yang.Module{}
+
+var ms *yang.Modules
+
+var global_session *netconf.Session
+
 
 var completer = readline.NewPrefixCompleter(readline.PcItem("set", readline.PcItemDynamic(listYang)), readline.PcItem("validate"))
 
@@ -32,9 +38,9 @@ type netconfRequest struct {
 
 type schemaJ struct {
 	Identifier string `xml:"identifier"`
-	Version    string `xml:"version"`
-	Format     string `xml:"format"`
-	Namespace  string `xml:"namespace"`
+	//Version    string `xml:"version"`
+	//Format     string `xml:"format"`
+	//Namespace  string `xml:"namespace"`
 	//Location    string  `xml:"location"`
 }
 
@@ -52,6 +58,26 @@ type schemaReply struct {
 	XMLName xml.Name     `xml:"data"`
 	Rest    schemaReply2 `xml:"netconf-state"`
 }
+
+type yangReply struct {
+	XMLName xml.Name     `xml:"data"`
+	Rest    string		 `xml:",chardata"`
+}
+
+func Expand(expanded_map map[string]interface{}, value []string) map[string]interface{} {
+	fmt.Printf("map: %v, value: %s\n", expanded_map, value)
+	if len(value) == 2 {
+		expanded_map[value[0]] = value[1]
+	} else {
+		if expanded_map[value[0]] == nil {
+			expanded_map[value[0]] = make(map[string]interface{})
+		}
+		expanded_map[value[0]] = Expand(expanded_map[value[0]].(map[string]interface{}), value[1:])
+	}
+
+	return expanded_map
+}
+
 
 func newNetconfRequest(netconfEntry yang.Entry, Path []string, value string) *netconfRequest {
 	return &netconfRequest{
@@ -129,6 +155,9 @@ func listYang(path string) []string {
 
 	if len(tokens) > 2 {
 		// We have a module name
+		if mods[tokens[1]] == nil {
+			 mods[tokens[1]] = getYangModule(global_session, tokens[1])
+		}
 		mod := mods[tokens[1]]
 		if len(tokens) > 3 {
 			entry := yang.ToEntry(mod).Dir[tokens[2]]
@@ -149,6 +178,89 @@ func listYang(path string) []string {
 	return names
 }
 
+
+func getSchemaList(s *netconf.Session) []string {
+	/*
+	 * Get a list of schemas
+	 */
+	reply, error := s.Exec(netconf.RawMethod(`<get>
+    <filter type="subtree">
+      <netconf-state xmlns="urn:ietf:params:xml:ns:yang:ietf-netconf-monitoring">
+        <schemas/>
+      </netconf-state>
+    </filter>
+    </get>`))
+	if error != nil {
+		fmt.Printf("Request reply error: %v\n", error)
+	}
+	//fmt.Printf("Request reply: %v, error: %v\n", reply.Data, error)
+	schemaReply := schemaReply{}
+	err := xml.Unmarshal([]byte(reply.Data), &schemaReply)
+	fmt.Printf("Request reply: %v, error: %v\n", schemaReply.Rest.Rest.Schemas[0], err)
+	fmt.Printf("Request reply: %v, error: %v\n", schemaReply.Rest.Rest.Schemas[99].Identifier, err)
+
+	var sch_strings []string
+	for _, sch := range schemaReply.Rest.Rest.Schemas {
+		sch_strings = append(sch_strings, sch.Identifier)
+	}
+
+	return sch_strings
+}
+
+func getYangModule (s *netconf.Session, yang_mod string) *yang.Module {
+	/*
+	 * Get the yang module from XR and read it into the map
+	 */
+	reply, error := s.Exec(netconf.RawMethod(`<get-schema
+		 xmlns="urn:ietf:params:xml:ns:yang:ietf-netconf-monitoring">
+	 <identifier>` +
+		yang_mod +
+		`</identifier>
+		 </get-schema>
+	 `))
+	 if error != nil {
+		 fmt.Printf("Request reply error: %v\n", error)
+	 }
+	 //fmt.Printf("Request reply: %v, error: %v\n", reply, error)
+	 yangReply := yangReply{}
+	 err := xml.Unmarshal([]byte(reply.Data), &yangReply)
+	 //fmt.Printf("Request reply: %v, error: %v\n", yangReply, err)
+	 err = ms.Parse(yangReply.Rest, yang_mod)
+	 if err != nil {
+		 fmt.Fprintln(os.Stderr, err)
+	 }
+
+	 return ms.Modules[yang_mod]
+}
+
+func sendNetconfRequest(s *netconf.Session, request_line string, commit bool) {
+	slice := strings.Split(request_line, " ")
+
+	ncRequest := newNetconfRequest(*yang.ToEntry(mods[slice[1]]), slice[2:len(slice)-1], slice[len(slice)-1])
+	fmt.Printf("ncRequest: %v\n", ncRequest)
+
+	rpc := netconf.NewRPCMessage([]netconf.RPCMethod{ncRequest})
+	xml2, err := xml.MarshalIndent(rpc, "", "  ")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
+	os.Stdout.Write(xml2)
+	println()
+
+	reply, error := s.Exec(ncRequest)
+
+	fmt.Printf("Request reply: %v, error: %v\n", reply, error)
+
+	println("Request sent!")
+
+	if commit {
+		reply, error = s.Exec(netconf.RawMethod("<commit></commit>"))
+	} else {
+		reply, error = s.Exec(netconf.RawMethod("<validate><source><candidate/></source></validate>"))
+	}
+	fmt.Printf("Request reply: %v, error: %v\n", reply, error)
+}
+
 func main() {
 
 	// Parse args
@@ -156,50 +268,67 @@ func main() {
 	flag.Parse()
 
 	// Connect to the node
-	s, err := netconf.DialTelnet("localhost:"+strconv.Itoa(*port), "lab", "lab", nil)
+	//s, err := netconf.DialTelnet("localhost:"+strconv.Itoa(*port), "lab", "lab", nil)
+
+
+    sshConfig, err := netconf.SSHConfigPubKeyFile("root", "/users/jnightin/.ssh/id_moonshine", "")
+    if err != nil {
+        panic(err)
+    }
+    sshConfig.HostKeyCallback = ssh.InsecureIgnoreHostKey()
+    s, err := netconf.DialSSH("localhost:"+strconv.Itoa(*port), sshConfig)
+
+
 	if err != nil {
 		panic(err)
 	}
+	global_session = s
 
 	defer s.Close()
 
 	//fmt.Printf("Server Capabilities: '%+v'\n", s.ServerCapabilities)
 	fmt.Printf("Session Id: %d\n\n", s.SessionID)
 
-	ms := yang.NewModules()
+	ms = yang.NewModules()
 
-	if err := ms.Read("Cisco-IOS-XR-shellutil-cfg.yang"); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-	}
-	if err := ms.Read("Cisco-IOS-XR-cdp-cfg.yang"); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-	}
+	real_mods := true
+	if real_mods {
+		mod_names = getSchemaList(s);
+		//fmt.Printf("mod_names: %v\n", mod_names)
+	} else {
+		if err := ms.Read("Cisco-IOS-XR-shellutil-cfg.yang"); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		if err := ms.Read("Cisco-IOS-XR-cdp-cfg.yang"); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
 
-	//fmt.Printf("%v\n", ms)
+		//fmt.Printf("%v\n", ms)
 
-	for _, m := range ms.Modules {
-		if mods[m.Name] == nil {
-			mods[m.Name] = m
-			mod_names = append(mod_names, m.Name)
+		for _, m := range ms.Modules {
+			if mods[m.Name] == nil {
+				mods[m.Name] = m
+				mod_names = append(mod_names, m.Name)
+			}
 		}
 	}
 	sort.Strings(mod_names)
 	//println(mod_names)
-	fmt.Printf("names: %v\n", mod_names)
-	entries := make([]*yang.Entry, len(mod_names))
-	for x, n := range mod_names {
-		entries[x] = yang.ToEntry(mods[n])
-	}
+	//fmt.Printf("names: %v\n", mod_names)
+	//entries := make([]*yang.Entry, len(mod_names))
+	//for x, n := range mod_names {
+	//	entries[x] = yang.ToEntry(mods[n])
+	//}
 	//fmt.Printf("+%v\n", entries[0])
-	for _, e := range entries {
-		//print(e.Description)
-		fmt.Printf("\n\n\n\n")
-		//e.Print(os.Stdout)
-		for s1, e1 := range e.Dir {
-			println(s1)
-			e1.Print(os.Stdout)
-		}
-	}
+	//for _, e := range entries {
+	//	//print(e.Description)
+	//	fmt.Printf("\n\n\n\n")
+	//	//e.Print(os.Stdout)
+	//	for s1, e1 := range e.Dir {
+	//		println(s1)
+	//		e1.Print(os.Stdout)
+	//	}
+	//}
 
 	fmt.Printf("\n\n\n\n")
 
@@ -218,6 +347,9 @@ func main() {
 	defer l.Close()
 	log.SetOutput(l.Stderr())
 	var request_line string
+
+	request_map := make(map[string]interface{})
+
 	for {
 		println("In loop")
 		line, err := l.Readline()
@@ -235,48 +367,28 @@ func main() {
 		switch {
 		case strings.HasPrefix(line, "set"):
 			request_line = line
+			slice := strings.Split(request_line, " ")
+			log.Println("Set line:", slice[1:])
+
+			request_map = Expand(request_map, slice[1:])
+
+			fmt.Printf("expand: %v\n", request_map)
+
+			/*
+			 * If we don't know the module, reads it from the router now.
+			 */
+			if mods[slice[1]] == nil {
+				 mods[slice[1]] = getYangModule(s, slice[1])
+			}
+			break
+		case strings.HasPrefix(line, "validate"):
+			sendNetconfRequest(s, request_line, false)
+			break
+		case strings.HasPrefix(line, "commit"):
+			sendNetconfRequest(s, request_line, true)
 			break
 		default:
-			log.Println("you said:", strconv.Quote(line))
 		}
+		log.Println("you said:", strconv.Quote(line))
 	}
-
-	slice := strings.Split(request_line, " ")
-
-	//ncRequest := newNetconfRequest(*entries[0], []string{"host-names", "host-name"}, "CCV-invalid-hostname")
-	ncRequest := newNetconfRequest(*yang.ToEntry(mods[slice[1]]), slice[2:len(slice)-1], slice[len(slice)-1])
-	fmt.Printf("ncRequest: %v\n", ncRequest)
-
-	rpc := netconf.NewRPCMessage([]netconf.RPCMethod{ncRequest})
-	xml2, err := xml.MarshalIndent(rpc, "", "  ")
-	os.Stdout.Write(xml2)
-	println()
-
-	reply, error := s.Exec(ncRequest)
-
-	fmt.Printf("Request reply: %v, error: %v\n", reply, error)
-
-	println("Request sent!")
-
-	reply, error = s.Exec(netconf.RawMethod("<validate><source><candidate/></source></validate>"))
-	fmt.Printf("Request reply: %v, error: %v\n", reply, error)
-
-	reply, error = s.Exec(netconf.RawMethod(`<get>
-    <filter type="subtree">
-      <netconf-state xmlns="urn:ietf:params:xml:ns:yang:ietf-netconf-monitoring">
-        <schemas/>
-      </netconf-state>
-    </filter>
-    </get>`))
-	//fmt.Printf("Request reply: %v, error: %v\n", reply.Data, error)
-	schemaReply := schemaReply{}
-	err = xml.Unmarshal([]byte(reply.Data), &schemaReply)
-	fmt.Printf("Request reply: %v, error: %v\n", schemaReply.Rest.Rest.Schemas[0], err)
-
-	reply, error = s.Exec(netconf.RawMethod(`<get-schema
-         xmlns="urn:ietf:params:xml:ns:yang:ietf-netconf-monitoring">
-     <identifier>Cisco-IOS-XR-shellutil-cfg</identifier>
-         </get-schema>
-     `))
-	//fmt.Printf("Request reply: %v, error: %v\n", reply.Data, error)
 }
