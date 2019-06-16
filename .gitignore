@@ -6,3 +6,4 @@ go1.8/
 pkg/
 *.exe
 setup.sh
+.code*

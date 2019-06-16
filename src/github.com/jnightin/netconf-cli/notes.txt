@@ -1,0 +1,67 @@
+/ws/sonalipa-sjc/bgp/netconf_client.py tcp localhost 10555
+
+ 
+
+/nobackup/jnightin/nio-proxy/proxy-xr proxy proxy /nobackup/jnightin/cc3 10555 1.1.1.1 1.1.1.2 5555
+
+ 
+
+llaunch -m -f ./proxy.pm
+
+ 
+
+go run src/github.com/jnightin/netconf-cli/netconf-cli.go
+
+ 
+
+import github.com/doublerebel/bellows
+
+ 
+
+foo2 := map[string] map[string]string{"shellutil" : map[string]string{"hostnames" : "foo"}}
+
+ 
+
+ 
+
+foo := map[string]string{"shellutil" : "foo"}
+
+ 
+
+ 
+
+ 
+
+mom3 := map[string]map[string]string{ "jp": map[string]string{"one": "ichi", "two": "ni"},  "de": map[string]string{"one": "eins", "three": "drei"}}
+
+ 
+
+ 
+
+/nobackup/jnightin/cc3> IOX_XTERM=screen llaunch -m -f ./proxy.pm
+
+ 
+
+/nobackup/jnightin/golang> go run src/github.com/jnightin/netconf-cli/netconf-cli.go
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+Xr-dev2
+
+Start screen first
+
+IOX_XTERM=screen moonshine launch -v1 ./enxr-xlnc_router-lindt-64.vm -t ./proxy.pm
+
+ 
+
+moonshine get-tcp-ports
+
+ 
