@@ -142,7 +142,7 @@ func (nc *netconfRequest) MarshalMethod() string {
 }
 
 func listYang(path string) []string {
-	//fmt.Printf("\nlistYang called on path: %s\n", path)
+	fmt.Printf("\nlistYang called on path: %s\n", path)
 	names := make([]string, 0)
 	/*files, _ := ioutil.ReadDir(path)
 	  for _, f := range files {
@@ -161,9 +161,15 @@ func listYang(path string) []string {
 		mod := mods[tokens[1]]
 		if len(tokens) > 3 {
 			entry := yang.ToEntry(mod).Dir[tokens[2]]
-			for s := range entry.Dir {
-				names = append(names, tokens[1]+" "+tokens[2]+" "+s)
-			}
+            fmt.Printf("Foo: %v\n", entry)
+            if len(tokens) > 4 {
+                entry := yang.ToEntry(mod).Dir[tokens[2]]
+                fmt.Printf("Foo: %v\n", entry)
+            } else {
+    			for s := range entry.Dir {
+    				names = append(names, tokens[1]+" "+tokens[2]+" "+s)
+    			}
+            }
 		} else {
 			for s := range yang.ToEntry(mod).Dir {
 				names = append(names, tokens[1]+" "+s)
@@ -265,18 +271,20 @@ func main() {
 
 	// Parse args
 	var port = flag.Int("port", 10555, "Port number to connect to")
+	var addr = flag.String("address", "localhost", "Address or host to connect to")
 	flag.Parse()
 
 	// Connect to the node
 	//s, err := netconf.DialTelnet("localhost:"+strconv.Itoa(*port), "lab", "lab", nil)
 
 
-    sshConfig, err := netconf.SSHConfigPubKeyFile("root", "/users/jnightin/.ssh/id_moonshine", "")
-    if err != nil {
-        panic(err)
-    }
+    //sshConfig, err := netconf.SSHConfigPubKeyFile("root", "/users/jnightin/.ssh/id_moonshine", "")
+    // if err != nil {
+    //     panic(err)
+    // }
+    sshConfig := netconf.SSHConfigPassword("cisco", "cisco123")
     sshConfig.HostKeyCallback = ssh.InsecureIgnoreHostKey()
-    s, err := netconf.DialSSH("localhost:"+strconv.Itoa(*port), sshConfig)
+    s, err := netconf.DialSSH(*addr + ":"+strconv.Itoa(*port), sshConfig)
 
 
 	if err != nil {
