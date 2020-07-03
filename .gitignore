@@ -7,3 +7,8 @@ pkg/
 *.exe
 setup.sh
 .code*
+netconf-cli
+*vscode*
+*.tgz
+*.diff
+*.old
