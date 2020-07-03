@@ -6,7 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
+	//"log"
 	"os"
 	"sort"
 	"strconv"
@@ -16,6 +16,7 @@ import (
 	"github.com/chzyer/readline"
 	"github.com/openconfig/goyang/pkg/yang"
 	"golang.org/x/crypto/ssh"
+	log "github.com/sirupsen/logrus"
 )
 
 // Array of available Yang modules
@@ -27,13 +28,24 @@ var ms *yang.Modules
 
 var global_session *netconf.Session
 
+const(
+	Validate = 0
+	Commit = 1 
+	GetConf = 2
+	Get = 3
+)
 
-var completer = readline.NewPrefixCompleter(readline.PcItem("set", readline.PcItemDynamic(listYang)), readline.PcItem("validate"))
+var completer = readline.NewPrefixCompleter(
+	readline.PcItem("set", readline.PcItemDynamic(listYang)),
+	readline.PcItem("get-conf", readline.PcItemDynamic(listYang)),
+	readline.PcItem("validate"), 
+	readline.PcItem("commit"))
 
 type netconfRequest struct {
 	ncEntry     yang.Entry
 	NetConfPath []string
 	Value       string
+	reqType     int
 }
 
 type schemaJ struct {
@@ -65,7 +77,7 @@ type yangReply struct {
 }
 
 func Expand(expanded_map map[string]interface{}, value []string) map[string]interface{} {
-	fmt.Printf("map: %v, value: %s\n", expanded_map, value)
+	//fmt.Printf("map: %v, value: %s\n", expanded_map, value)
 	if len(value) == 2 {
 		expanded_map[value[0]] = value[1]
 	} else {
@@ -79,11 +91,12 @@ func Expand(expanded_map map[string]interface{}, value []string) map[string]inte
 }
 
 
-func newNetconfRequest(netconfEntry yang.Entry, Path []string, value string) *netconfRequest {
+func newNetconfRequest(netconfEntry yang.Entry, Path []string, value string, request_type int) *netconfRequest {
 	return &netconfRequest{
 		NetConfPath: Path,
 		ncEntry:     netconfEntry,
 		Value:       value,
+		reqType: 	 request_type,
 	}
 }
 
@@ -109,11 +122,19 @@ func (nc *netconfRequest) MarshalMethod() string {
 
 	enc := xml.NewEncoder(&buf)
 
-	enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "edit-config"}})
+	switch nc.reqType {
+	case Commit:
+		fallthrough
+	case Validate:
+		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "edit-config"}})
+		emitNestedXML(enc, []string{"target", "candidate"}, "")
+		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "config", Space: "urn:ietf:params:xml:ns:netconf:base:1.0"}})
+	case GetConf:
+		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "get-config"}})
+		emitNestedXML(enc, []string{"source", "running"}, "")
+		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "filter"}})
+	}
 
-	emitNestedXML(enc, []string{"target", "candidate"}, "")
-
-	enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "config", Space: "urn:ietf:params:xml:ns:netconf:base:1.0"}})
 
 	start2 := xml.StartElement{Name: xml.Name{Local: nc.NetConfPath[0], Space: nc.ncEntry.Namespace().Name}}
 	//fmt.Println(start2)
@@ -128,21 +149,30 @@ func (nc *netconfRequest) MarshalMethod() string {
 	if err != nil {
 		fmt.Println(err)
 	}
-	err = enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "config", Space: "urn:ietf:params:xml:ns:netconf:base:1.0"}})
-	if err != nil {
-		fmt.Println(err)
+	switch nc.reqType {
+	case Commit:
+		fallthrough
+	case Validate:
+		err = enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "config", Space: "urn:ietf:params:xml:ns:netconf:base:1.0"}})
+		if err != nil {
+			fmt.Println(err)
+		}
+		err = enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "edit-config"}})
+		if err != nil {
+			fmt.Println(err)
+		}
+	case GetConf:
+		enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "filter"}})
+		enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "get-config"}})
 	}
-	err = enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "edit-config"}})
-	if err != nil {
-		fmt.Println(err)
-	}
+
 	enc.Flush()
 
 	return buf.String()
 }
 
 func listYang(path string) []string {
-	fmt.Printf("\nlistYang called on path: %s\n", path)
+	log.Debug("\nlistYang called on path: %s\n", path)
 	names := make([]string, 0)
 	/*files, _ := ioutil.ReadDir(path)
 	  for _, f := range files {
@@ -161,10 +191,10 @@ func listYang(path string) []string {
 		mod := mods[tokens[1]]
 		if len(tokens) > 3 {
 			entry := yang.ToEntry(mod).Dir[tokens[2]]
-            fmt.Printf("Foo: %v\n", entry)
+            //fmt.Printf("Foo: %v\n", entry)
             if len(tokens) > 4 {
                 entry := yang.ToEntry(mod).Dir[tokens[2]]
-                fmt.Printf("Foo: %v\n", entry)
+                log.Debug("Foo: %v\n", entry)
             } else {
     			for s := range entry.Dir {
     				names = append(names, tokens[1]+" "+tokens[2]+" "+s)
@@ -201,9 +231,12 @@ func getSchemaList(s *netconf.Session) []string {
 	}
 	//fmt.Printf("Request reply: %v, error: %v\n", reply.Data, error)
 	schemaReply := schemaReply{}
-	err := xml.Unmarshal([]byte(reply.Data), &schemaReply)
-	fmt.Printf("Request reply: %v, error: %v\n", schemaReply.Rest.Rest.Schemas[0], err)
-	fmt.Printf("Request reply: %v, error: %v\n", schemaReply.Rest.Rest.Schemas[99].Identifier, err)
+	error = xml.Unmarshal([]byte(reply.Data), &schemaReply)
+	//fmt.Printf("Request reply: %v, error: %v\n", schemaReply.Rest.Rest.Schemas[0], err)
+	//fmt.Printf("Request reply: %v, error: %v\n", schemaReply.Rest.Rest.Schemas[99].Identifier, err)
+	if error != nil {
+		fmt.Printf("Request reply error: %v\n", error)
+	}
 
 	var sch_strings []string
 	for _, sch := range schemaReply.Rest.Rest.Schemas {
@@ -217,6 +250,7 @@ func getYangModule (s *netconf.Session, yang_mod string) *yang.Module {
 	/*
 	 * Get the yang module from XR and read it into the map
 	 */
+	 //log.Debug("Getting: ", yang_mod)
 	reply, error := s.Exec(netconf.RawMethod(`<get-schema
 		 xmlns="urn:ietf:params:xml:ns:yang:ietf-netconf-monitoring">
 	 <identifier>` +
@@ -226,6 +260,7 @@ func getYangModule (s *netconf.Session, yang_mod string) *yang.Module {
 	 `))
 	 if error != nil {
 		 fmt.Printf("Request reply error: %v\n", error)
+		 return nil
 	 }
 	 //fmt.Printf("Request reply: %v, error: %v\n", reply, error)
 	 yangReply := yangReply{}
@@ -239,40 +274,96 @@ func getYangModule (s *netconf.Session, yang_mod string) *yang.Module {
 	 return ms.Modules[yang_mod]
 }
 
-func sendNetconfRequest(s *netconf.Session, request_line string, commit bool) {
+func sendNetconfRequest(s *netconf.Session, request_line string, request_type int) {
 	slice := strings.Split(request_line, " ")
 
-	ncRequest := newNetconfRequest(*yang.ToEntry(mods[slice[1]]), slice[2:len(slice)-1], slice[len(slice)-1])
-	fmt.Printf("ncRequest: %v\n", ncRequest)
+	// Create a request structure with module, path array, and string value.
+	var ncRequest *netconfRequest
+	switch request_type {
+	case Commit:
+		fallthrough
+	case Validate:
+		ncRequest = newNetconfRequest(*yang.ToEntry(mods[slice[1]]), slice[2:len(slice)-1], slice[len(slice)-1], request_type)
+	case GetConf:
+		ncRequest = newNetconfRequest(*yang.ToEntry(mods[slice[1]]), slice[2:len(slice)], "", request_type)
+	default:
+		panic("Bad request type")
+	}
+	
+	//fmt.Printf("ncRequest: %v\n", ncRequest)
 
 	rpc := netconf.NewRPCMessage([]netconf.RPCMethod{ncRequest})
 	xml2, err := xml.MarshalIndent(rpc, "", "  ")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
-	os.Stdout.Write(xml2)
-	println()
+	log.Debug(xml2)
 
 	reply, error := s.Exec(ncRequest)
 
-	fmt.Printf("Request reply: %v, error: %v\n", reply, error)
+	log.Debug("Request reply: %v, error: %v\n", reply, error)
 
-	println("Request sent!")
-
-	if commit {
+	if request_type == Commit {
 		reply, error = s.Exec(netconf.RawMethod("<commit></commit>"))
-	} else {
+		log.Debug("Request reply: %v, error: %v\n", reply, error)
+	} else if request_type == Validate {
 		reply, error = s.Exec(netconf.RawMethod("<validate><source><candidate/></source></validate>"))
+		log.Debug("Request reply: %v, error: %v\n", reply, error)
+	} else if request_type == GetConf {
+		type Data struct {
+			XMLName   xml.Name `xml:"data"`
+			Text      string   `xml:",chardata"`
+			HostNames struct {
+				Text     string `xml:",chardata"`
+				Xmlns    string `xml:"xmlns,attr"`
+				HostName string `xml:"host-name"`
+			} `xml:"host-names"`
+		} 
+		var foo Data
+		//var foo []string
+		error = xml.Unmarshal([]byte(reply.Data), &foo)
+		log.Debug("Request reply: %v, error: %v, data: %v\n", reply, error, foo.HostNames.HostName)
+
+		dec := xml.NewDecoder(strings.NewReader(reply.Data))
+		var tok xml.Token
+		var last_string string
+		var the_string string
+		var seen_first_end bool
+		seen_first_end = false
+		for {
+			tok, error = dec.Token()
+			//fmt.Printf("Token: %T\n", tok, error)
+			switch v := tok.(type) {
+			case xml.CharData:
+				//fmt.Printf("Token: %v\n", string(v), error)
+				last_string = string(v)
+			case xml.EndElement:
+				if !seen_first_end {
+					seen_first_end = true
+					the_string = last_string
+				}
+
+			default:
+				//fmt.Printf("Token: %v\n", v, error)
+			}
+			if tok == nil {
+				break
+			}
+		}
+		fmt.Println("Hostname: ", the_string)
+
 	}
-	fmt.Printf("Request reply: %v, error: %v\n", reply, error)
 }
 
 func main() {
-
 	// Parse args
 	var port = flag.Int("port", 10555, "Port number to connect to")
 	var addr = flag.String("address", "localhost", "Address or host to connect to")
+	var log_level = flag.String("debug", log.InfoLevel.String(), "debug level")
 	flag.Parse()
+
+	l2, _ := log.ParseLevel(*log_level)
+	log.SetLevel(l2)
 
 	// Connect to the node
 	//s, err := netconf.DialTelnet("localhost:"+strconv.Itoa(*port), "lab", "lab", nil)
@@ -295,7 +386,7 @@ func main() {
 	defer s.Close()
 
 	//fmt.Printf("Server Capabilities: '%+v'\n", s.ServerCapabilities)
-	fmt.Printf("Session Id: %d\n\n", s.SessionID)
+	//fmt.Printf("Session Id: %d\n\n", s.SessionID)
 
 	ms = yang.NewModules()
 
@@ -338,10 +429,8 @@ func main() {
 	//	}
 	//}
 
-	fmt.Printf("\n\n\n\n")
-
 	l, err := readline.NewEx(&readline.Config{
-		Prompt:            "\033[31m»\033[0m ",
+		Prompt:            "netconf> ",
 		HistoryFile:       "/tmp/readline.tmp",
 		AutoComplete:      completer,
 		InterruptPrompt:   "^C",
@@ -353,13 +442,14 @@ func main() {
 		panic(err)
 	}
 	defer l.Close()
-	log.SetOutput(l.Stderr())
+	//log.SetOutput(l.Stderr())
 	var request_line string
 
-	request_map := make(map[string]interface{})
-
 	for {
-		println("In loop")
+		// Maps string to void
+		// Becomes a nested map of strings
+		request_map := make(map[string]interface{})
+		//println("In loop")
 		line, err := l.Readline()
 		if err == readline.ErrInterrupt {
 			if len(line) == 0 {
@@ -376,27 +466,48 @@ func main() {
 		case strings.HasPrefix(line, "set"):
 			request_line = line
 			slice := strings.Split(request_line, " ")
-			log.Println("Set line:", slice[1:])
+			log.Debug("Set line:", slice[1:])
 
 			request_map = Expand(request_map, slice[1:])
 
-			fmt.Printf("expand: %v\n", request_map)
+			log.Debugf("expand: %v\n", request_map)
 
 			/*
-			 * If we don't know the module, reads it from the router now.
+			 * If we don't know the module, read it from the router now.
 			 */
 			if mods[slice[1]] == nil {
 				 mods[slice[1]] = getYangModule(s, slice[1])
 			}
 			break
+		case strings.HasPrefix(line, "get-conf"):
+			// TODO make common with set
+			request_line = line
+			slice := strings.Split(request_line, " ")
+			log.Debug("Set line:", slice[1:])
+
+			request_map = Expand(request_map, slice[1:])
+
+			log.Debugf("expand: %v\n", request_map)
+
+			/*
+			 * If we don't know the module, read it from the router now.
+			 */
+			if mods[slice[1]] == nil {
+				 mods[slice[1]] = getYangModule(s, slice[1])
+				 if mods[slice[1]] == nil {
+					 continue
+				 }
+			}
+			sendNetconfRequest(s, request_line, GetConf)
+			break
 		case strings.HasPrefix(line, "validate"):
-			sendNetconfRequest(s, request_line, false)
+			sendNetconfRequest(s, request_line, Validate)
 			break
 		case strings.HasPrefix(line, "commit"):
-			sendNetconfRequest(s, request_line, true)
+			sendNetconfRequest(s, request_line, Commit)
 			break
 		default:
 		}
-		log.Println("you said:", strconv.Quote(line))
+		log.Debug("you said:", strconv.Quote(line))
 	}
 }
