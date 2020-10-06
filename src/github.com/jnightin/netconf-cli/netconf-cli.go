@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 
+	//"io"
+
 	"os"
 	"sort"
 	"strconv"
@@ -41,6 +43,11 @@ var completer = readline.NewPrefixCompleter(
 	readline.PcItem("get-oper", readline.PcItemDynamic(listYang)),
 	readline.PcItem("validate"),
 	readline.PcItem("commit"))
+
+type netconfPathElement struct {
+	name  string
+	value string
+}
 
 type netconfRequest struct {
 	ncEntry     yang.Entry
@@ -202,19 +209,6 @@ func listYang(path string) []string {
 		if mod == nil {
 			return modNames
 		}
-		// TODO move this into getYangModule
-		for _, i := range mod.Include {
-			log.Debugf("Mod: %v %v", mod.Name, i)
-			submod := getYangModule(globalSession, i.Name)
-			if submod == nil {
-				log.Infof("Failed to get %v", i.Name)
-			} else {
-				yang.ToEntry(submod)
-			}
-		}
-		ms.Modules[ms.Modules[tokens[1]].FullName()] = nil
-		mods[tokens[1]] = getYangModule(globalSession, tokens[1])
-		ms.Process()
 
 		entry := yang.ToEntry(mod)
 		for _, e := range tokens[2:] {
@@ -229,13 +223,18 @@ func listYang(path string) []string {
 						tokens = tokens[:len(tokens)-1]
 					}
 				}
+				if entry.IsList() {
+					log.Debugln("Found list: ", entry.Name, entry.Key)
+				}
 
 			}
 		}
 		if entry != nil {
 			log.Debugf("Entry: kind %v dir %v Uses: %v", entry.Kind, entry.Dir, entry.Errors)
 		}
-		if entry != nil && entry.Kind == yang.DirectoryEntry {
+		if entry.IsList() {
+			fmt.Printf("Enter list key (%s, %s)\n", entry.Key, entry.Dir[entry.Key].Description)
+		} else if entry != nil && entry.Kind == yang.DirectoryEntry {
 			for s := range entry.Dir {
 				names = append(names, strings.Join(tokens[1:], " ")+" "+s)
 			}
@@ -306,7 +305,7 @@ func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
 	/*
 	 * Get the yang module from XR and read it into the map
 	 */
-	//log.Debug("Getting: ", yangMod)
+	log.Debug("Getting: ", yangMod)
 	reply, error := s.Exec(netconf.RawMethod(`<get-schema
 		 xmlns="urn:ietf:params:xml:ns:yang:ietf-netconf-monitoring">
 	 <identifier>` +
@@ -327,12 +326,56 @@ func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
 		fmt.Fprintln(os.Stderr, err)
 		panic("Error")
 	}
+
+	// TODO move this into getYangModule
+	var mod *yang.Module = nil
 	if ms.Modules[yangMod] != nil {
-		return ms.Modules[yangMod]
+		mod = ms.Modules[yangMod]
 	} else if ms.SubModules[yangMod] != nil {
-		return ms.SubModules[yangMod]
+		mod = ms.SubModules[yangMod]
 	}
-	return nil
+	if mod != nil {
+		for _, i := range mod.Include {
+			log.Debugf("Mod: %v %v", mod.Name, i)
+			// Add check here whether we already have the submodule; if not get it, and note we need to reprocess this module further down.
+			if ms.Modules[i.Name] == nil && ms.SubModules[i.Name] == nil {
+				submod := getYangModule(globalSession, i.Name)
+				if submod == nil {
+					log.Infof("Failed to get %v", i.Name)
+				} else {
+					yang.ToEntry(submod)
+				}
+			} else {
+				log.Debug("Already processed: ", i.Name)
+			}
+		}
+	}
+	if ms.Modules[yangMod] != nil {
+		ms.Modules[ms.Modules[yangMod].FullName()] = nil
+	} else if ms.SubModules[yangMod] != nil {
+		ms.SubModules[ms.SubModules[yangMod].FullName()] = nil
+	}
+	//mods[yangMod] = getYangModule(globalSession, yangMod)
+	err = ms.Parse(yangReply.Rest, yangMod)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		panic("Error")
+	}
+	if ms.Modules[yangMod] != nil {
+		mod = ms.Modules[yangMod]
+	} else if ms.SubModules[yangMod] != nil {
+		mod = ms.SubModules[yangMod]
+	}
+	mods[yangMod] = mod
+
+	//if ms.Modules[yangMod] != nil {
+	log.Debugf("About to process %s", mod.Name)
+	//yang.ToEntry(mod)
+	ms.Process()
+	log.Debugf("Stored and re-processed %s", mod.Name)
+	//}
+
+	return mod
 }
 
 func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int) {
@@ -364,7 +407,7 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 
 	reply, error := s.Exec(ncRequest)
 
-	log.Debugf("Request reply: %v, error: %v\n", reply, error)
+	//log.Debugf("Request reply: %v, error: %v\n", reply, error)
 
 	if requestType == commit {
 		reply, error = s.Exec(netconf.RawMethod("<commit></commit>"))
@@ -491,7 +534,7 @@ func main() {
 		panic(err)
 	}
 	defer l.Close()
-	//log.SetOutput(l.Stderr())
+	log.SetOutput(l.Stderr())
 	var requestLine string
 
 	for {
