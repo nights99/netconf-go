@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"regexp"
 
 	//"io"
 
@@ -46,12 +47,12 @@ var completer = readline.NewPrefixCompleter(
 
 type netconfPathElement struct {
 	name  string
-	value string
+	value *string
 }
 
 type netconfRequest struct {
 	ncEntry     yang.Entry
-	NetConfPath []string
+	NetConfPath []netconfPathElement
 	Value       string
 	reqType     int
 }
@@ -101,28 +102,46 @@ func expand(expandedMap map[string]interface{}, value []string) map[string]inter
 }
 
 func newNetconfRequest(netconfEntry yang.Entry, Path []string, value string, requestType int) *netconfRequest {
+	ncArray := make([]netconfPathElement, len(Path))
+	for i, p := range Path {
+		if strings.Contains(p, "=") {
+			values := strings.Split(p, "=")
+			ncArray[i].name = values[0]
+			ncArray[i].value = &values[1]
+
+		} else {
+			ncArray[i].name = p
+			ncArray[i].value = nil
+		}
+	}
 	return &netconfRequest{
-		NetConfPath: Path,
+		NetConfPath: ncArray,
 		ncEntry:     netconfEntry,
 		Value:       value,
 		reqType:     requestType,
 	}
 }
 
-func emitNestedXML(enc *xml.Encoder, paths []string, value string) {
-	start3 := xml.StartElement{Name: xml.Name{Local: paths[0]}}
+func emitNestedXML(enc *xml.Encoder, paths []netconfPathElement, value string) {
+	start3 := xml.StartElement{Name: xml.Name{Local: paths[0].name}}
 	err := enc.EncodeToken(start3)
 	if err != nil {
 		fmt.Println(err)
+	}
+	if paths[0].value != nil {
+		enc.EncodeToken(xml.CharData(*paths[0].value))
+		enc.EncodeToken(start3.End())
 	}
 	if len(paths) > 1 {
 		emitNestedXML(enc, paths[1:], "")
 	} else if value != "" {
 		enc.EncodeToken(xml.CharData(value))
 	}
-	err = enc.EncodeToken(start3.End())
-	if err != nil {
-		fmt.Println(err)
+	if paths[0].value == nil {
+		err = enc.EncodeToken(start3.End())
+		if err != nil {
+			fmt.Println(err)
+		}
 	}
 }
 
@@ -136,18 +155,24 @@ func (nc *netconfRequest) MarshalMethod() string {
 		fallthrough
 	case validate:
 		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "edit-config"}})
-		emitNestedXML(enc, []string{"target", "candidate"}, "")
+		emitNestedXML(enc, []netconfPathElement{
+			{name: "target", value: nil},
+			{name: "candidate", value: nil}},
+			"")
 		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "config", Space: "urn:ietf:params:xml:ns:netconf:base:1.0"}})
 	case getConf:
 		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "get-config"}})
-		emitNestedXML(enc, []string{"source", "running"}, "")
+		emitNestedXML(enc, []netconfPathElement{
+			{name: "source", value: nil},
+			{name: "running", value: nil}},
+			"")
 		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "filter"}})
 	case getOper:
 		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "get"}})
-		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "filter"}})
+		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "filter"}, Attr: []xml.Attr{{Name: xml.Name{Local: "type"}, Value: "subtree"}}})
 	}
 
-	start2 := xml.StartElement{Name: xml.Name{Local: nc.NetConfPath[0], Space: nc.ncEntry.Namespace().Name}}
+	start2 := xml.StartElement{Name: xml.Name{Local: nc.NetConfPath[0].name, Space: nc.ncEntry.Namespace().Name}}
 	//fmt.Println(start2)
 	err := enc.EncodeToken(start2)
 	if err != nil {
@@ -220,7 +245,11 @@ func listYang(path string) []string {
 					if entry == nil {
 						log.Debugf("Couldn't find %v in %v", e, prevEntry.Dir)
 						entry = prevEntry
-						tokens = tokens[:len(tokens)-1]
+						if entry.IsList() {
+							// Assume this is a key value.
+						} else {
+							tokens = tokens[:len(tokens)-1]
+						}
 					}
 				}
 				if entry.IsList() {
@@ -233,7 +262,10 @@ func listYang(path string) []string {
 			log.Debugf("Entry: kind %v dir %v Uses: %v", entry.Kind, entry.Dir, entry.Errors)
 		}
 		if entry.IsList() {
-			fmt.Printf("Enter list key (%s, %s)\n", entry.Key, entry.Dir[entry.Key].Description)
+			fmt.Printf("Enter list key (%s, %s, %v)\n", entry.Key, entry.Dir[entry.Key].Description, entry.Dir[entry.Key].Type.Name)
+			for s := range entry.Dir {
+				names = append(names, strings.Join(tokens[1:], " ")+" "+s)
+			}
 		} else if entry != nil && entry.Kind == yang.DirectoryEntry {
 			for s := range entry.Dir {
 				names = append(names, strings.Join(tokens[1:], " ")+" "+s)
@@ -317,7 +349,11 @@ func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
 		fmt.Printf("Request reply error: %v\n", error)
 		return nil
 	}
-	//log.Debugf("Request reply: %v, error: %v\n", reply, error)
+	log.Debugf("Request reply: %v, error: %v\n", reply.Data, error)
+	re, _ := regexp.Compile("\n#[0-9]+\n")
+	// strs := re.FindAllStringSubmatch(reply.Data, 10)
+	// fmt.Printf("%v\n", strs)
+	reply.Data = re.ReplaceAllLiteralString(reply.Data, "")
 	yangReply := yangReply{}
 	err := xml.Unmarshal([]byte(reply.Data), &yangReply)
 	//fmt.Printf("Request reply: %v, error: %v\n", yangReply, err)
@@ -336,6 +372,22 @@ func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
 	}
 	if mod != nil {
 		for _, i := range mod.Include {
+			log.Debugf("Mod: %v %v", mod.Name, i)
+			// Add check here whether we already have the submodule; if not get it, and note we need to reprocess this module further down.
+			if ms.Modules[i.Name] == nil && ms.SubModules[i.Name] == nil {
+				submod := getYangModule(globalSession, i.Name)
+				if submod == nil {
+					log.Infof("Failed to get %v", i.Name)
+				} else {
+					yang.ToEntry(submod)
+				}
+			} else {
+				log.Debug("Already processed: ", i.Name)
+			}
+		}
+	}
+	if mod != nil {
+		for _, i := range mod.Import {
 			log.Debugf("Mod: %v %v", mod.Name, i)
 			// Add check here whether we already have the submodule; if not get it, and note we need to reprocess this module further down.
 			if ms.Modules[i.Name] == nil && ms.SubModules[i.Name] == nil {
@@ -416,7 +468,12 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 		reply, error = s.Exec(netconf.RawMethod("<validate><source><candidate/></source></validate>"))
 		log.Debugf("Request reply: %v, error: %v\n", reply, error)
 	} else if requestType == getConf || requestType == getOper {
+		if error != nil {
+			fmt.Printf("Request reply: %v, error: %v\n", reply, error)
+			return
+		}
 		log.Debugf("Request reply: %v, error: %v, data: %v\n", reply, error, reply.Data)
+		fmt.Printf("Request data: %v\n", reply.Data)
 
 		dec := xml.NewDecoder(strings.NewReader(reply.Data))
 		var tok xml.Token
@@ -426,11 +483,12 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 		seenFirstEnd = false
 		for {
 			tok, error = dec.Token()
-			//fmt.Printf("Token: %T\n", tok, error)
+			// fmt.Printf("Token: %T %v\n", tok, error)
 			switch v := tok.(type) {
 			case xml.CharData:
-				//fmt.Printf("Token: %v\n", string(v), error)
+				// fmt.Printf("Token: %v %v\n", string(v), error)
 				lastString = string(v)
+				// theString = lastString
 			case xml.EndElement:
 				if !seenFirstEnd {
 					seenFirstEnd = true
@@ -438,7 +496,7 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 				}
 
 			default:
-				//fmt.Printf("Token: %v\n", v, error)
+				// fmt.Printf("Token: %v %v\n", v, error)
 			}
 			if tok == nil {
 				break
@@ -477,7 +535,7 @@ func main() {
 
 	defer s.Close()
 
-	//fmt.Printf("Server Capabilities: '%+v'\n", s.ServerCapabilities)
+	// fmt.Printf("Server Capabilities: '%+v'\n", s.ServerCapabilities[0])
 	//fmt.Printf("Session Id: %d\n\n", s.SessionID)
 
 	ms = yang.NewModules()

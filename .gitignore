@@ -12,3 +12,6 @@ netconf-cli
 *.tgz
 *.diff
 *.old
+sdk/
+vxr.out/
+pyvxr.log
