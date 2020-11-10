@@ -247,6 +247,12 @@ func listYang(path string) []string {
 						entry = prevEntry
 						if entry.IsList() {
 							// Assume this is a key value.
+							// @@@ Check whether list key has been specified or not
+							// i := strings.Index(e, "=")
+							// fmt.Printf("Compare %v to %v, %d, %d\n", e, entry.Key, i, len(e))
+							// if i == -1 || i == len(e)-1 {
+							// 	tokens = tokens[:len(tokens)-1]
+							// }
 						} else {
 							tokens = tokens[:len(tokens)-1]
 						}
@@ -263,8 +269,21 @@ func listYang(path string) []string {
 		}
 		if entry.IsList() {
 			fmt.Printf("Enter list key (%s, %s, %v)\n", entry.Key, entry.Dir[entry.Key].Description, entry.Dir[entry.Key].Type.Name)
-			for s := range entry.Dir {
-				names = append(names, strings.Join(tokens[1:], " ")+" "+s)
+			fmt.Printf("list key tokens: %v\n", tokens)
+			e := tokens[len(tokens)-1]
+			i := strings.Index(e, "=")
+			fmt.Printf("Compare %v to %v, %d, %d\n", e, entry.Key, i, len(e))
+			// if i == -1 || i == len(e)-1 {
+			if i == -1 {
+				if entry.Dir[entry.Key].Type.Name == "Interface-name" {
+					intfs := GetInterfaces(globalSession)
+					println(intfs)
+				}
+				names = append(names, strings.Join(tokens[1:], " ")+" "+entry.Key+"=")
+			} else {
+				for s := range entry.Dir {
+					names = append(names, strings.Join(tokens[1:], " ")+" "+s)
+				}
 			}
 		} else if entry != nil && entry.Kind == yang.DirectoryEntry {
 			for s := range entry.Dir {
@@ -430,7 +449,7 @@ func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
 	return mod
 }
 
-func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int) {
+func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int) string {
 	slice := strings.Split(requestLine, " ")
 
 	// Create a request structure with module, path array, and string value.
@@ -470,7 +489,7 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 	} else if requestType == getConf || requestType == getOper {
 		if error != nil {
 			fmt.Printf("Request reply: %v, error: %v\n", reply, error)
-			return
+			return ""
 		}
 		log.Debugf("Request reply: %v, error: %v, data: %v\n", reply, error, reply.Data)
 		fmt.Printf("Request data: %v\n", reply.Data)
@@ -505,6 +524,7 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 		fmt.Println("Data: ", theString)
 
 	}
+	return reply.Data
 }
 
 func main() {
