@@ -38,10 +38,9 @@ func GetInterfaces(s *netconf.Session) []string {
 	slice := strings.Split(requestLine, " ")
 	log.Debug("Set line:", slice[1:])
 
-	requestMap := make(map[string]interface{})
-	requestMap = expand(requestMap, slice[1:])
-
-	log.Debugf("expand: %v\n", requestMap)
+	// requestMap := make(map[string]interface{})
+	// requestMap = expand(requestMap, slice[1:])
+	// log.Debugf("expand: %v\n", requestMap)
 
 	/*
 	* If we don't know the module, read it from the router now.
@@ -111,8 +110,8 @@ func GetNodes(s *netconf.Session) []string {
 	requestLine := "get-oper Cisco-IOS-XR-platform-oper platform racks rack rack-name=0"
 	slice := strings.Split(requestLine, " ")
 
-	requestMap := make(map[string]interface{})
-	requestMap = expand(requestMap, slice[1:])
+	// requestMap := make(map[string]interface{})
+	// requestMap = expand(requestMap, slice[1:])
 
 	/*
 	* If we don't know the module, read it from the router now.
