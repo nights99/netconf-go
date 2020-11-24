@@ -75,9 +75,28 @@ type schemaReply2 struct {
 	Rest    schemaReply3 `xml:"schemas"`
 }
 
-type schemaReply struct {
+type schemaReplyOld struct {
 	XMLName xml.Name     `xml:"data"`
 	Rest    schemaReply2 `xml:"netconf-state"`
+}
+type schemaReply struct {
+	XMLName      xml.Name `xml:"data"`
+	Text         string   `xml:",chardata"`
+	NetconfState struct {
+		Text    string `xml:",chardata"`
+		Xmlns   string `xml:"xmlns,attr"`
+		Schemas struct {
+			Text   string `xml:",chardata"`
+			Schema []struct {
+				Text       string `xml:",chardata"`
+				Identifier string `xml:"identifier"`
+				Version    string `xml:"version"`
+				Format     string `xml:"format"`
+				Namespace  string `xml:"namespace"`
+				Location   string `xml:"location"`
+			} `xml:"schema"`
+		} `xml:"schemas"`
+	} `xml:"netconf-state"`
 }
 
 type yangReply struct {
@@ -248,11 +267,11 @@ func listYang(path string) []string {
 						if entry.IsList() {
 							// Assume this is a key value.
 							// @@@ Check whether list key has been specified or not
-							// i := strings.Index(e, "=")
-							// fmt.Printf("Compare %v to %v, %d, %d\n", e, entry.Key, i, len(e))
-							// if i == -1 || i == len(e)-1 {
-							// 	tokens = tokens[:len(tokens)-1]
-							// }
+							i := strings.Index(e, "=")
+							fmt.Printf("Compare %v to %v, %d, %d\n", e, entry.Key, i, len(e))
+							if i == -1 || i == len(e)-1 {
+								tokens = tokens[:len(tokens)-1]
+							}
 						} else {
 							tokens = tokens[:len(tokens)-1]
 						}
@@ -278,8 +297,18 @@ func listYang(path string) []string {
 				if entry.Dir[entry.Key].Type.Name == "Interface-name" {
 					intfs := GetInterfaces(globalSession)
 					println(intfs)
+					for _, intf := range intfs {
+						names = append(names, strings.Join(tokens[1:], " ")+" "+entry.Key+"="+intf)
+					}
+				} else if entry.Dir[entry.Key].Type.Name == "Node-id" {
+					nodes := GetNodes(globalSession)
+					println(nodes)
+					for _, node := range nodes {
+						names = append(names, strings.Join(tokens[1:], " ")+" "+entry.Key+"="+node)
+					}
+				} else {
+					names = append(names, strings.Join(tokens[1:], " ")+" "+entry.Key+"=")
 				}
-				names = append(names, strings.Join(tokens[1:], " ")+" "+entry.Key+"=")
 			} else {
 				for s := range entry.Dir {
 					names = append(names, strings.Join(tokens[1:], " ")+" "+s)
@@ -334,7 +363,7 @@ func getSchemaList(s *netconf.Session) []string {
 	if error != nil {
 		fmt.Printf("Request reply error: %v\n", error)
 	}
-	//fmt.Printf("Request reply: %v, error: %v\n", reply.Data, error)
+	// fmt.Printf("Request reply: %v, error: %v\n", reply.Data[0:1000], error)
 	schemaReply := schemaReply{}
 	error = xml.Unmarshal([]byte(reply.Data), &schemaReply)
 	//fmt.Printf("Request reply: %v, error: %v\n", schemaReply.Rest.Rest.Schemas[0], err)
@@ -344,7 +373,8 @@ func getSchemaList(s *netconf.Session) []string {
 	}
 
 	var schStrings []string
-	for _, sch := range schemaReply.Rest.Rest.Schemas {
+	// for _, sch := range schemaReply.Rest.Rest.Schemas {
+	for _, sch := range schemaReply.NetconfState.Schemas.Schema {
 		schStrings = append(schStrings, sch.Identifier)
 	}
 
@@ -675,6 +705,10 @@ func main() {
 			requestLine = line
 			slice := strings.Split(requestLine, " ")
 			log.Debug("Set line:", slice[1:])
+
+			if len(slice) < 3 {
+				continue
+			}
 
 			requestMap = expand(requestMap, slice[1:])
 
