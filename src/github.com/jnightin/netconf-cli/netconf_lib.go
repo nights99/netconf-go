@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/Juniper/go-netconf/netconf"
@@ -35,6 +36,26 @@ type netconfRequest struct {
 	NetConfPath []netconfPathElement
 	Value       string
 	reqType     int
+}
+
+type schemaReply struct {
+	XMLName      xml.Name `xml:"data"`
+	Text         string   `xml:",chardata"`
+	NetconfState struct {
+		Text    string `xml:",chardata"`
+		Xmlns   string `xml:"xmlns,attr"`
+		Schemas struct {
+			Text   string `xml:",chardata"`
+			Schema []struct {
+				Text       string `xml:",chardata"`
+				Identifier string `xml:"identifier"`
+				Version    string `xml:"version"`
+				Format     string `xml:"format"`
+				Namespace  string `xml:"namespace"`
+				Location   string `xml:"location"`
+			} `xml:"schema"`
+		} `xml:"schemas"`
+	} `xml:"netconf-state"`
 }
 
 var ms *yang.Modules
@@ -324,4 +345,37 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 
 	}
 	return reply.Data
+}
+
+func getSchemaList(s *netconf.Session) []string {
+	/*
+	 * Get a list of schemas
+	 */
+	reply, error := s.Exec(netconf.RawMethod(`<get>
+    <filter type="subtree">
+      <netconf-state xmlns="urn:ietf:params:xml:ns:yang:ietf-netconf-monitoring">
+        <schemas/>
+      </netconf-state>
+    </filter>
+    </get>`))
+	if error != nil {
+		fmt.Printf("Request reply error: %v\n", error)
+	}
+	// fmt.Printf("Request reply: %v, error: %v\n", reply.Data[0:1000], error)
+	schemaReply := schemaReply{}
+	error = xml.Unmarshal([]byte(reply.Data), &schemaReply)
+	//fmt.Printf("Request reply: %v, error: %v\n", schemaReply.Rest.Rest.Schemas[0], err)
+	//fmt.Printf("Request reply: %v, error: %v\n", schemaReply.Rest.Rest.Schemas[99].Identifier, err)
+	if error != nil {
+		fmt.Printf("Request reply error: %v\n", error)
+	}
+
+	var schStrings []string
+	// for _, sch := range schemaReply.Rest.Rest.Schemas {
+	for _, sch := range schemaReply.NetconfState.Schemas.Schema {
+		schStrings = append(schStrings, sch.Identifier)
+	}
+
+	sort.Strings(schStrings)
+	return schStrings
 }
