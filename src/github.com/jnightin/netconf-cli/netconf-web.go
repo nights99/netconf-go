@@ -11,6 +11,31 @@ import (
 	"syscall/js"
 )
 
+var modNames []string
+
+func getEntries() js.Func {
+	jsonFunc := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		// if len(args) != 1 {
+		// 	fmt.Printf("Invalid no of arguments passed: %v\n", args)
+		// 	return "Invalid no of arguments passed"
+		// }
+		fmt.Printf("input %v\n", args)
+		slice := make([]string, len(args))
+		for i, v := range args {
+			slice[i] = v.String()
+		}
+
+		// GetEntries(slice)
+		return nil
+	})
+	return jsonFunc
+}
+
+func doGetSchemas() {
+	modNames = getSchemaList(globalSession)
+	js.Global().Call("foo", modNames)
+}
+
 func jsonWrapper() js.Func {
 	jsonFunc := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		if len(args) != 1 {
@@ -18,7 +43,8 @@ func jsonWrapper() js.Func {
 		}
 		inputJSON := args[0].String()
 		fmt.Printf("input %s\n", inputJSON)
-		modNames := getSchemaList(globalSession)
+		// @@@ Can't block so may have to use 'go' for goroutine
+		go doGetSchemas()
 		new := make([]interface{}, len(modNames))
 		for i, v := range modNames {
 			new[i] = v
