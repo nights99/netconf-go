@@ -215,7 +215,8 @@ func main() {
 					continue
 				}
 			}
-			sendNetconfRequest(s, requestLine, getOper)
+			netconfData := sendNetconfRequest(s, requestLine, getOper)
+			fmt.Printf("Request data: %v\n", netconfData)
 			break
 		case strings.HasPrefix(line, "validate"):
 			sendNetconfRequest(s, requestLine, validate)

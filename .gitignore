@@ -7,7 +7,8 @@ pkg/
 *.exe
 setup.sh
 .code*
-/netconf-cli
+**/netconf-cli
+!**/netconf-cli/
 /main.wasm
 *vscode*
 *.tgz
@@ -16,3 +17,4 @@ setup.sh
 sdk/
 vxr.out/
 pyvxr.log
+/term_recorder

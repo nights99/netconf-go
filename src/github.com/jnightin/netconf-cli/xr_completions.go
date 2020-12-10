@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/xml"
-	"fmt"
 	"strings"
 
 	"github.com/Juniper/go-netconf/netconf"
@@ -59,7 +58,7 @@ func GetInterfaces(s *netconf.Session) []string {
 		// intfs = append(intfs, i.Name)
 		intfs[i] = intf.Name
 	}
-	fmt.Printf("Intfs: %v\n", intfs)
+	// fmt.Printf("Intfs: %v\n", intfs)
 	intfCache = intfs
 
 	return intfs
@@ -130,7 +129,7 @@ func GetNodes(s *netconf.Session) []string {
 		// intfs = append(intfs, i.Name)
 		slots[i] = slot.Instances.Instance.State.NodeName
 	}
-	fmt.Printf("Nodes: %v\n", slots)
+	// fmt.Printf("Nodes: %v\n", slots)
 
 	return slots
 }

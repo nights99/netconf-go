@@ -432,7 +432,7 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 			return ""
 		}
 		log.Debugf("Request reply: %v, error: %v, data: %v\n", reply, error, reply.Data)
-		fmt.Printf("Request data: %v\n", reply.Data)
+		// fmt.Printf("Request data: %v\n", reply.Data)
 
 		dec := xml.NewDecoder(strings.NewReader(reply.Data))
 		var tok xml.Token
