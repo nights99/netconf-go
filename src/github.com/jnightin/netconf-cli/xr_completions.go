@@ -82,7 +82,7 @@ type nodesReply struct {
 						SlotName  string `xml:"slot-name"`
 						Instances struct {
 							Text     string `xml:",chardata"`
-							Instance struct {
+							Instance []struct {
 								Text         string `xml:",chardata"`
 								InstanceName string `xml:"instance-name"`
 								State        struct {
@@ -125,11 +125,15 @@ func GetNodes(s *netconf.Session) []string {
 		panic(err)
 	}
 	slots := make([]string, len(yangReply.Platform.Racks.Rack[0].Slots.Slot))
-	for i, slot := range yangReply.Platform.Racks.Rack[0].Slots.Slot {
+	var n int = 0
+	for _, slot := range yangReply.Platform.Racks.Rack[0].Slots.Slot {
 		// intfs = append(intfs, i.Name)
-		slots[i] = slot.Instances.Instance.State.NodeName
+		if len(slot.Instances.Instance) > 0 {
+			slots[n] = slot.Instances.Instance[0].State.NodeName
+			n++
+		}
 	}
 	// fmt.Printf("Nodes: %v\n", slots)
 
-	return slots
+	return slots[:n]
 }
