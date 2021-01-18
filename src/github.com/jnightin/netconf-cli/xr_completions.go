@@ -47,7 +47,7 @@ func GetInterfaces(s *netconf.Session) []string {
 	if mods[slice[1]] == nil {
 		mods[slice[1]] = getYangModule(s, slice[1])
 	}
-	data := sendNetconfRequest(s, requestLine, getOper)
+	data, _ := sendNetconfRequest(s, requestLine, getOper)
 	yangReply := intfReply{}
 	err := xml.Unmarshal([]byte(data), &yangReply)
 	if err != nil {
@@ -118,7 +118,7 @@ func GetNodes(s *netconf.Session) []string {
 	if mods[slice[1]] == nil {
 		mods[slice[1]] = getYangModule(s, slice[1])
 	}
-	data := sendNetconfRequest(s, requestLine, getOper)
+	data, _ := sendNetconfRequest(s, requestLine, getOper)
 	yangReply := nodesReply{}
 	err := xml.Unmarshal([]byte(data), &yangReply)
 	if err != nil {

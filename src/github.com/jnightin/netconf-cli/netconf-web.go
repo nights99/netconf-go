@@ -7,6 +7,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -16,6 +17,24 @@ import (
 )
 
 var modNames []string
+
+func getEntry(this js.Value, args []js.Value) interface{} {
+	fmt.Printf("getEntry input %v %v %v\n", this, args, len(args))
+	yangClassName := args[0].Index(0).String()
+	mod := ms.Modules[yangClassName]
+	entry := yang.ToEntry(mod)
+
+	for i := 1; i < args[0].Length(); i++ {
+		v := args[0].Index(i)
+		entry = entry.Dir[v.String()]
+	}
+
+	foo, _ := json.Marshal(entry)
+
+	bar := js.ValueOf(string(foo))
+
+	return bar
+}
 
 func doGetEntries(slice []string) {
 	entries := listYang(strings.Join(slice, " "))
@@ -94,6 +113,39 @@ func jsonWrapper(this js.Value, args []js.Value) interface{} {
 	return promise
 }
 
+func sendNetconfRequest3(resolve *js.Value, req []string) {
+	netconfData, data := sendNetconfRequest(globalSession, strings.Join(req, " "), getOper)
+	fmt.Printf("sendNetconfRequest3: %v, %v\n", netconfData, data)
+
+	if resolve != nil {
+		resolve.Invoke(data)
+	}
+}
+
+func sendNetconfRequest1(this js.Value, args []js.Value) interface{} {
+	// if len(args) != 1 {
+	// 	return "Invalid no of arguments passed"
+	// }
+	// fmt.Printf("sendNetconfRequest1: %s\n", args[1].String())
+
+	slice := make([]string, args[0].Length())
+	for i := 0; i < args[0].Length(); i++ {
+		slice[i] = args[0].Index(i).String()
+	}
+	slice = append([]string{"get-oper"}, slice...)
+	// fmt.Printf("slice2 %v\n", slice)
+
+	promise := js.Global().Get("Promise").New(js.FuncOf(
+		func(this js.Value, args []js.Value) interface{} {
+			resolve := args[0]
+			go sendNetconfRequest3(&resolve, slice)
+			return nil
+		},
+	))
+
+	return promise
+}
+
 func main() {
 	// Connect("localhost", 12345)
 	ms = yang.NewModules()
@@ -102,6 +154,8 @@ func main() {
 	// fmt.Printf("Mod names: %v\n", modNames)
 	js.Global().Set("formatJSON", js.FuncOf(jsonWrapper))
 	js.Global().Set("getEntries", js.FuncOf(getEntries))
+	js.Global().Set("getEntry", js.FuncOf(getEntry))
+	js.Global().Set("sendNetconfRequest", js.FuncOf(sendNetconfRequest1))
 	<-make(chan bool)
 
 }

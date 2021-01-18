@@ -391,7 +391,7 @@ func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
 
 	return mod
 }
-func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int) string {
+func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int) (string, string) {
 	slice := strings.Split(requestLine, " ")
 
 	// Create a request structure with module, path array, and string value.
@@ -421,6 +421,7 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 	reply, error := s.Exec(ncRequest)
 
 	//log.Debugf("Request reply: %v, error: %v\n", reply, error)
+	var theString string
 
 	if requestType == commit {
 		reply, error = s.Exec(netconf.RawMethod("<commit></commit>"))
@@ -431,7 +432,7 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 	} else if requestType == getConf || requestType == getOper {
 		if error != nil {
 			fmt.Printf("Request reply: %v, error: %v\n", reply, error)
-			return ""
+			return "", ""
 		}
 		log.Debugf("Request reply: %v, error: %v, data: %v\n", reply, error, reply.Data)
 		// fmt.Printf("Request data: %v\n", reply.Data)
@@ -439,7 +440,6 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 		dec := xml.NewDecoder(strings.NewReader(reply.Data))
 		var tok xml.Token
 		var lastString string
-		var theString string
 		var seenFirstEnd bool
 		seenFirstEnd = false
 		for {
@@ -466,7 +466,7 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 		fmt.Println("Data: ", theString)
 
 	}
-	return reply.Data
+	return reply.Data, theString
 }
 
 func getSchemaList(s *netconf.Session) []string {
