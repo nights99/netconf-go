@@ -55,16 +55,9 @@ func doGetEntries(slice []string) {
 }
 
 func getEntries(this js.Value, args []js.Value) interface{} {
-	// if len(args) != 1 {
-	// 	fmt.Printf("Invalid no of arguments passed: %v\n", args)
-	// 	return "Invalid no of arguments passed"
-	// }
 	fmt.Printf("input %v\n", args)
 	fmt.Printf("input %v %v %v %v\n", args, args[0].Type(), args[0].Length(), args[0].Index(0))
 	slice := make([]string, args[0].Length())
-	// for i, v := range args {
-	// 	slice[i] = v.String()
-	// }
 	for i := 0; i < args[0].Length(); i++ {
 		slice[i] = args[0].Index(i).String()
 	}
@@ -77,9 +70,7 @@ func getEntries(this js.Value, args []js.Value) interface{} {
 func doGetSchemas(resolve *js.Value) {
 	modNames = getSchemaList(globalSession)
 	log.Printf("Got schemas: %v\n", modNames[:3])
-	// js.Global().Call("foo", modNames)
 	js.Global().Call("foo", strings.Join(modNames, " "))
-	// js.Global().Call("foo", "test string")
 	if resolve != nil {
 		resolve.Invoke(strings.Join(modNames, " "))
 	}
@@ -87,12 +78,9 @@ func doGetSchemas(resolve *js.Value) {
 
 func GetModNames3(this js.Value, args []js.Value) interface{} {
 	resolve := args[0]
-	// modNames := []string{"shellutil", "ip-static"}
-	// modNames := GetModNames2()
 
 	go doGetSchemas(&resolve)
 
-	// return modNames
 	return nil
 }
 
@@ -104,12 +92,6 @@ func jsonWrapper(this js.Value, args []js.Value) interface{} {
 	inputJSON := args[0].String()
 	fmt.Printf("input %s\n", inputJSON)
 
-	// modNames := []string{"foo", "bar"}
-	// new := make([]interface{}, len(modNames))
-	// for i, v := range modNames {
-	// 	new[i] = v
-	// }
-	// return new
 	return promise
 }
 
@@ -123,17 +105,11 @@ func sendNetconfRequest3(resolve *js.Value, req []string) {
 }
 
 func sendNetconfRequest1(this js.Value, args []js.Value) interface{} {
-	// if len(args) != 1 {
-	// 	return "Invalid no of arguments passed"
-	// }
-	// fmt.Printf("sendNetconfRequest1: %s\n", args[1].String())
-
 	slice := make([]string, args[0].Length())
 	for i := 0; i < args[0].Length(); i++ {
 		slice[i] = args[0].Index(i).String()
 	}
 	slice = append([]string{"get-oper"}, slice...)
-	// fmt.Printf("slice2 %v\n", slice)
 
 	promise := js.Global().Get("Promise").New(js.FuncOf(
 		func(this js.Value, args []js.Value) interface{} {
