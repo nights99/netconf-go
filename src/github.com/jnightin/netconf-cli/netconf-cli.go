@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"github.com/Juniper/go-netconf/netconf"
 	"github.com/chzyer/readline"
 	"github.com/openconfig/goyang/pkg/yang"
+	"github.com/peterh/liner"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 )
@@ -27,6 +29,8 @@ var completer = readline.NewPrefixCompleter(
 	readline.PcItem("get-oper", readline.PcItemDynamic(listYang)),
 	readline.PcItem("validate"),
 	readline.PcItem("commit"))
+
+var historyFile = filepath.Join(os.TempDir(), ".liner_example_history")
 
 // type schemaJ struct {
 // 	Identifier string `xml:"identifier"`
@@ -51,6 +55,46 @@ var completer = readline.NewPrefixCompleter(
 
 // 	return expandedMap
 // }
+
+func linerCompleter(line string) []string {
+	// fmt.Printf("Called with %v\n", line)
+
+	tokens := strings.Fields(line)
+	log.Debugf("tokens: %d, %v", len(tokens), tokens)
+
+	if len(tokens) >= 2 || strings.HasSuffix(line, " ") {
+		yangCompletions := listYang(line)
+		// fmt.Printf("Completions %v\n", yangCompletions)
+
+		cs := make([]string, len(yangCompletions))
+		var pos int = 0
+		for _, e := range yangCompletions {
+			// fmt.Printf("Comparing '%s' and '%s'\n", e[strings.LastIndex(e, " ")+1:], tokens[len(tokens)-1])
+			if strings.HasPrefix(e[strings.LastIndex(e, " ")+1:], tokens[len(tokens)-1]) || strings.HasSuffix(line, " ") {
+				// println("Found " + e)
+				cs[pos] = tokens[0] + " " + e
+				pos++
+			}
+		}
+		// cs = []string{longestcommon.Prefix(cs[:pos])}
+		// fmt.Printf("Found %v\n", cs)
+		return cs[:pos]
+		// return cs
+	} else {
+		cs := []string{"get-oper", "get-conf", "set", "validate", "commit"}
+		if len(tokens) > 0 {
+			n := 0
+			for _, x := range cs {
+				if strings.HasPrefix(x, tokens[0]) {
+					cs[n] = x
+					n++
+				}
+			}
+			cs = cs[:n]
+		}
+		return cs
+	}
+}
 
 func main() {
 	// Parse args
@@ -124,28 +168,47 @@ func main() {
 	//	}
 	//}
 
-	l, err := readline.NewEx(&readline.Config{
-		Prompt:            "netconf> ",
-		HistoryFile:       "/tmp/readline.tmp",
-		AutoComplete:      completer,
-		InterruptPrompt:   "^C",
-		EOFPrompt:         "exit",
-		HistorySearchFold: true,
-	})
-	if err != nil {
-		println("Error!")
-		panic(err)
-	}
-	defer l.Close()
-	log.SetOutput(l.Stderr())
+	// l, err := readline.NewEx(&readline.Config{
+	// 	Prompt:            "netconf> ",
+	// 	HistoryFile:       "/tmp/readline.tmp",
+	// 	AutoComplete:      completer,
+	// 	InterruptPrompt:   "^C",
+	// 	EOFPrompt:         "exit",
+	// 	HistorySearchFold: true,
+	// })
+	// if err != nil {
+	// 	println("Error!")
+	// 	panic(err)
+	// }
+	// defer l.Close()
+	// log.SetOutput(l.Stderr())
 	var requestLine string
+
+	var liner2 *liner.State = liner.NewLiner()
+	defer liner2.Close()
+	liner2.SetCompleter(linerCompleter)
+	liner2.SetTabCompletionStyle(liner.TabPrints)
+	if f, err := os.Open(historyFile); err == nil {
+		liner2.ReadHistory(f)
+		f.Close()
+	}
+	defer func() {
+		if f, err := os.Create(historyFile); err != nil {
+			log.Print("Error writing history file: ", err)
+		} else {
+			liner2.WriteHistory(f)
+			f.Close()
+		}
+	}()
 
 	for {
 		// Maps string to void
 		// Becomes a nested map of strings
 		// requestMap := make(map[string]interface{})
 		//println("In loop")
-		line, err := l.Readline()
+		// line, err := l.Readline()
+		line, err := liner2.Prompt("netconf> ")
+		// fmt.Printf("Liner: %v : %v", line, err)
 		if err == readline.ErrInterrupt {
 			if len(line) == 0 {
 				break
@@ -157,6 +220,10 @@ func main() {
 		}
 
 		line = strings.TrimSpace(line)
+		if len(line) > 0 {
+			// Should really be when a command has been validated and executed.
+			liner2.AppendHistory(line)
+		}
 		switch {
 		case strings.HasPrefix(line, "set"):
 			requestLine = line
@@ -179,6 +246,9 @@ func main() {
 			slice := strings.Split(requestLine, " ")
 			log.Debug("Set line:", slice[1:])
 
+			if len(slice) < 3 {
+				continue
+			}
 			// requestMap = expand(requestMap, slice[1:])
 			// log.Debugf("expand: %v\n", requestMap)
 

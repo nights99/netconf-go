@@ -35,50 +35,63 @@ func doGetEntries(slice []string) {
 	js.Global().Call("foo", strings.Join(webEntries, " "))
 }
 
-func getEntries() js.Func {
-	jsonFunc := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-		// if len(args) != 1 {
-		// 	fmt.Printf("Invalid no of arguments passed: %v\n", args)
-		// 	return "Invalid no of arguments passed"
-		// }
-		fmt.Printf("input %v\n", args)
-		slice := make([]string, len(args))
-		for i, v := range args {
-			slice[i] = v.String()
-		}
-		slice = append([]string{"get-oper"}, slice...)
-		go doGetEntries(slice)
-		return nil
-	})
-	return jsonFunc
+func getEntries(this js.Value, args []js.Value) interface{} {
+	// if len(args) != 1 {
+	// 	fmt.Printf("Invalid no of arguments passed: %v\n", args)
+	// 	return "Invalid no of arguments passed"
+	// }
+	fmt.Printf("input %v\n", args)
+	fmt.Printf("input %v %v %v %v\n", args, args[0].Type(), args[0].Length(), args[0].Index(0))
+	slice := make([]string, args[0].Length())
+	// for i, v := range args {
+	// 	slice[i] = v.String()
+	// }
+	for i := 0; i < args[0].Length(); i++ {
+		slice[i] = args[0].Index(i).String()
+	}
+	slice = append([]string{"get-oper"}, slice...)
+	fmt.Printf("slice %v\n", slice)
+	go doGetEntries(slice)
+	return nil
 }
 
-func doGetSchemas() {
+func doGetSchemas(resolve *js.Value) {
 	modNames = getSchemaList(globalSession)
 	log.Printf("Got schemas: %v\n", modNames[:3])
 	// js.Global().Call("foo", modNames)
 	js.Global().Call("foo", strings.Join(modNames, " "))
 	// js.Global().Call("foo", "test string")
+	if resolve != nil {
+		resolve.Invoke(strings.Join(modNames, " "))
+	}
 }
 
-func jsonWrapper() js.Func {
-	jsonFunc := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-		if len(args) != 1 {
-			return "Invalid no of arguments passed"
-		}
-		inputJSON := args[0].String()
-		fmt.Printf("input %s\n", inputJSON)
+func GetModNames3(this js.Value, args []js.Value) interface{} {
+	resolve := args[0]
+	// modNames := []string{"shellutil", "ip-static"}
+	// modNames := GetModNames2()
 
-		go doGetSchemas()
+	go doGetSchemas(&resolve)
 
-		modNames := []string{"foo", "bar"}
-		new := make([]interface{}, len(modNames))
-		for i, v := range modNames {
-			new[i] = v
-		}
-		return new
-	})
-	return jsonFunc
+	// return modNames
+	return nil
+}
+
+func jsonWrapper(this js.Value, args []js.Value) interface{} {
+	if len(args) != 1 {
+		return "Invalid no of arguments passed"
+	}
+	promise := js.Global().Get("Promise").New(js.FuncOf(GetModNames3))
+	inputJSON := args[0].String()
+	fmt.Printf("input %s\n", inputJSON)
+
+	// modNames := []string{"foo", "bar"}
+	// new := make([]interface{}, len(modNames))
+	// for i, v := range modNames {
+	// 	new[i] = v
+	// }
+	// return new
+	return promise
 }
 
 func main() {
@@ -87,8 +100,8 @@ func main() {
 	globalSession, _ = DialWebSocket("jnightin-ads2.cisco.com", 12345)
 	// modNames := GetModNames()
 	// fmt.Printf("Mod names: %v\n", modNames)
-	js.Global().Set("formatJSON", jsonWrapper())
-	js.Global().Set("getEntries", getEntries())
+	js.Global().Set("formatJSON", js.FuncOf(jsonWrapper))
+	js.Global().Set("getEntries", js.FuncOf(getEntries))
 	<-make(chan bool)
 
 }

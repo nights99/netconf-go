@@ -85,6 +85,7 @@ func (t *TransportWebSocket) Write(p []byte) (int, error) {
 	// return 1, nil
 }
 
+// Close x
 func (t *TransportWebSocket) Close() error {
 	println("Close called")
 	return nil

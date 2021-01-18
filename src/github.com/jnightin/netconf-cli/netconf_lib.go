@@ -90,6 +90,7 @@ func listYang(path string) []string {
 		}
 
 		entry := yang.ToEntry(mod)
+		var deletedLastToken bool = false
 		for _, e := range tokens[2:] {
 			if entry != nil && e != "" {
 				log.Debugf("Foo: e %v kind %v %v\n", e, entry.Kind, entry)
@@ -103,9 +104,10 @@ func listYang(path string) []string {
 							// Assume this is a key value.
 							// @@@ Check whether list key has been specified or not
 							i := strings.Index(e, "=")
-							fmt.Printf("Compare %v to %v, %d, %d\n", e, entry.Key, i, len(e))
-							if i == -1 || i == len(e)-1 {
+							// fmt.Printf("Compare %v to %v, %d, %d\n", e, entry.Key, i, len(e))
+							if i == -1 || i == len(e)-1 || (e == tokens[len(tokens)-1] && !strings.HasSuffix(path, " ")) {
 								tokens = tokens[:len(tokens)-1]
+								deletedLastToken = true
 							}
 						} else {
 							tokens = tokens[:len(tokens)-1]
@@ -123,12 +125,12 @@ func listYang(path string) []string {
 		}
 		if entry.IsList() {
 			fmt.Printf("Enter list key (%s, %s, %v)\n", entry.Key, entry.Dir[entry.Key].Description, entry.Dir[entry.Key].Type.Name)
-			fmt.Printf("list key tokens: %v\n", tokens)
+			// fmt.Printf("list key tokens: %v\n", tokens)
 			e := tokens[len(tokens)-1]
 			i := strings.Index(e, "=")
-			fmt.Printf("Compare %v to %v, %d, %d\n", e, entry.Key, i, len(e))
+			// fmt.Printf("Compare %v to %v, %d, %d\n", e, entry.Key, i, len(e))
 			// if i == -1 || i == len(e)-1 {
-			if i == -1 {
+			if i == -1 || (!deletedLastToken && !strings.HasSuffix(path, " ")) {
 				if entry.Dir[entry.Key].Type.Name == "Interface-name" {
 					intfs := GetInterfaces(globalSession)
 					println(intfs)
