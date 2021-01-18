@@ -104,7 +104,7 @@ func sshToWeb(web net.Conn, ssh *netconf.TransportSSH) {
 				// bytes2 = append(bytes2, bytes[:n]...)
 				total += n
 				if strings.Contains(string(bytes), msgSeperator) ||
-					strings.Contains(string(bytes), msgSeperator) {
+					strings.Contains(string(bytes), msgSeperator_v11) {
 					log.Printf("NC read: got end marker\n")
 					// log.Printf("NC read: %v \n%v\n", bytes, bytes2[total-4096:total])
 					break

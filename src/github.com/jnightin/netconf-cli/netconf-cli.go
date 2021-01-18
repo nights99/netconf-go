@@ -96,12 +96,30 @@ func linerCompleter(line string) []string {
 	}
 }
 
+var testMode = false
+
 func main() {
-	// Parse args
-	var port = flag.Int("port", 10555, "Port number to connect to")
-	var addr = flag.String("address", "localhost", "Address or host to connect to")
-	var logLevel = flag.String("debug", log.InfoLevel.String(), "debug level")
-	flag.Parse()
+	var port *int
+	var port1 int
+	var addr1, logLevel1 string
+	var addr, logLevel *string
+	if flag.CommandLine.Lookup("port") != nil {
+		// port = flag.Getter(flag.CommandLine.Lookup("port").Value).Get()
+
+		port1 = flag.Lookup("port").Value.(flag.Getter).Get().(int)
+		port = &port1
+
+		addr1 = flag.Lookup("address").Value.(flag.Getter).Get().(string)
+		addr = &addr1
+		logLevel1 = flag.Lookup("debug").Value.(flag.Getter).Get().(string)
+		logLevel = &logLevel1
+	} else {
+		// Parse args
+		port = flag.Int("port", 10555, "Port number to connect to")
+		addr = flag.String("address", "localhost", "Address or host to connect to")
+		logLevel = flag.String("debug", log.InfoLevel.String(), "debug level")
+		flag.Parse()
+	}
 
 	l2, _ := log.ParseLevel(*logLevel)
 	log.SetLevel(l2)
@@ -122,7 +140,9 @@ func main() {
 	}
 	globalSession = s
 
-	defer s.Close()
+	if !testMode {
+		defer s.Close()
+	}
 
 	// fmt.Printf("Server Capabilities: '%+v'\n", s.ServerCapabilities[0])
 	//fmt.Printf("Session Id: %d\n\n", s.SessionID)
@@ -201,6 +221,9 @@ func main() {
 		}
 	}()
 
+	if testMode {
+		return
+	}
 	for {
 		// Maps string to void
 		// Becomes a nested map of strings
