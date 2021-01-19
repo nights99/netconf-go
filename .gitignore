@@ -18,3 +18,4 @@ sdk/
 vxr.out/
 pyvxr.log
 /term_recorder
+netconf-go
