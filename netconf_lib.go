@@ -217,6 +217,8 @@ func emitNestedXML(enc *xml.Encoder, paths []netconfPathElement, value string, r
 	if paths[0].delete {
 		start3 = xml.StartElement{
 			Name: xml.Name{Local: paths[0].name},
+			// Possible operations are merge, replace, create, delete, remove
+			// Use remove rather than delete so as not to error if config doesn't exist.
 			Attr: []xml.Attr{{Name: xml.Name{Local: "operation", Space: "urn:ietf:params:xml:ns:netconf:base:1.0"}, Value: "remove"}}}
 	} else {
 		start3 = xml.StartElement{Name: xml.Name{Local: paths[0].name}}

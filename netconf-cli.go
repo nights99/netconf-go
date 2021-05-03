@@ -249,6 +249,8 @@ func main() {
 		}
 		switch {
 		case strings.HasPrefix(line, "set"), strings.HasPrefix(line, "delete"):
+			// TODO this is a big current limitation - can only set/delete a
+			// single item per-commit
 			requestLine = line
 			slice := strings.Split(requestLine, " ")
 			log.Debug("Set line:", slice[1:])
