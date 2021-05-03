@@ -19,3 +19,5 @@ vxr.out/
 pyvxr.log
 /term_recorder
 netconf-go
+cpu.prof
+netconf-cli.test

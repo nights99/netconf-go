@@ -140,7 +140,8 @@ func main() {
 		if _, err = upgrader.Upgrade(conn); err != nil {
 			// handle error
 		}
-		err = t.Dial("sjc24lab-srv7:10007", sshConfig)
+		// err = t.Dial("sjc24lab-srv7:10007", sshConfig)
+		err = t.Dial("172.26.228.148:64374", sshConfig)
 		if err != nil {
 			t.Close()
 			panic(err)

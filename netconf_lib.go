@@ -19,6 +19,7 @@ const (
 	commit   = 1
 	getConf  = 2
 	getOper  = 3
+	rpcOp    = 5
 )
 
 type yangReply struct {
@@ -27,8 +28,9 @@ type yangReply struct {
 }
 
 type netconfPathElement struct {
-	name  string
-	value *string
+	name   string
+	value  *string
+	delete bool
 }
 
 type netconfRequest struct {
@@ -186,7 +188,7 @@ func listYang(path string) []string {
 	return names
 }
 
-func newNetconfRequest(netconfEntry yang.Entry, Path []string, value string, requestType int) *netconfRequest {
+func newNetconfRequest(netconfEntry yang.Entry, Path []string, value string, requestType int, delete bool) *netconfRequest {
 	ncArray := make([]netconfPathElement, len(Path))
 	for i, p := range Path {
 		if strings.Contains(p, "=") {
@@ -198,6 +200,9 @@ func newNetconfRequest(netconfEntry yang.Entry, Path []string, value string, req
 			ncArray[i].name = p
 			ncArray[i].value = nil
 		}
+		if i == len(Path)-1 {
+			ncArray[i].delete = delete
+		}
 	}
 	return &netconfRequest{
 		NetConfPath: ncArray,
@@ -207,8 +212,16 @@ func newNetconfRequest(netconfEntry yang.Entry, Path []string, value string, req
 	}
 }
 
-func emitNestedXML(enc *xml.Encoder, paths []netconfPathElement, value string) {
-	start3 := xml.StartElement{Name: xml.Name{Local: paths[0].name}}
+func emitNestedXML(enc *xml.Encoder, paths []netconfPathElement, value string, reqType int) {
+	var start3 xml.StartElement
+	if paths[0].delete {
+		start3 = xml.StartElement{
+			Name: xml.Name{Local: paths[0].name},
+			Attr: []xml.Attr{{Name: xml.Name{Local: "operation", Space: "urn:ietf:params:xml:ns:netconf:base:1.0"}, Value: "remove"}}}
+	} else {
+		start3 = xml.StartElement{Name: xml.Name{Local: paths[0].name}}
+
+	}
 	err := enc.EncodeToken(start3)
 	if err != nil {
 		fmt.Println(err)
@@ -218,7 +231,7 @@ func emitNestedXML(enc *xml.Encoder, paths []netconfPathElement, value string) {
 		enc.EncodeToken(start3.End())
 	}
 	if len(paths) > 1 {
-		emitNestedXML(enc, paths[1:], "")
+		emitNestedXML(enc, paths[1:], "", reqType)
 	} else if value != "" {
 		enc.EncodeToken(xml.CharData(value))
 	}
@@ -243,18 +256,22 @@ func (nc *netconfRequest) MarshalMethod() string {
 		emitNestedXML(enc, []netconfPathElement{
 			{name: "target", value: nil},
 			{name: "candidate", value: nil}},
-			"")
+			"",
+			nc.reqType)
 		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "config", Space: "urn:ietf:params:xml:ns:netconf:base:1.0"}})
+
 	case getConf:
 		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "get-config"}})
 		emitNestedXML(enc, []netconfPathElement{
 			{name: "source", value: nil},
 			{name: "running", value: nil}},
-			"")
+			"", nc.reqType)
 		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "filter"}})
 	case getOper:
 		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "get"}})
 		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "filter"}, Attr: []xml.Attr{{Name: xml.Name{Local: "type"}, Value: "subtree"}}})
+	case rpcOp:
+		// enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "rpc"}})
 	}
 
 	start2 := xml.StartElement{Name: xml.Name{Local: nc.NetConfPath[0].name, Space: nc.ncEntry.Namespace().Name}}
@@ -264,7 +281,9 @@ func (nc *netconfRequest) MarshalMethod() string {
 		fmt.Println(err)
 	}
 
-	emitNestedXML(enc, nc.NetConfPath[1:], nc.Value)
+	if len(nc.NetConfPath) > 1 {
+		emitNestedXML(enc, nc.NetConfPath[1:], nc.Value, nc.reqType)
+	}
 
 	err = enc.EncodeToken(start2.End())
 	if err != nil {
@@ -288,6 +307,8 @@ func (nc *netconfRequest) MarshalMethod() string {
 	case getOper:
 		enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "filter"}})
 		enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "get"}})
+	case rpcOp:
+		// enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "rpc"}})
 	}
 
 	enc.Flush()
@@ -400,11 +421,13 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 	case commit:
 		fallthrough
 	case validate:
-		ncRequest = newNetconfRequest(*yang.ToEntry(mods[slice[1]]), slice[2:len(slice)-1], slice[len(slice)-1], requestType)
-	case getConf:
-		fallthrough
-	case getOper:
-		ncRequest = newNetconfRequest(*yang.ToEntry(mods[slice[1]]), slice[2:], "", requestType)
+		if slice[0] == "delete" {
+			ncRequest = newNetconfRequest(*yang.ToEntry(mods[slice[1]]), slice[2:], "", requestType, true)
+		} else {
+			ncRequest = newNetconfRequest(*yang.ToEntry(mods[slice[1]]), slice[2:len(slice)-1], slice[len(slice)-1], requestType, false)
+		}
+	case getOper, getConf, rpcOp:
+		ncRequest = newNetconfRequest(*yang.ToEntry(mods[slice[1]]), slice[2:], "", requestType, false)
 	default:
 		panic("Bad request type")
 	}
@@ -466,7 +489,11 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 		fmt.Println("Data: ", theString)
 
 	}
-	return reply.Data, theString
+	if reply != nil {
+		return reply.Data, theString
+	} else {
+		return error.Error(), ""
+	}
 }
 
 func getSchemaList(s *netconf.Session) []string {

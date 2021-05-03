@@ -81,7 +81,7 @@ func linerCompleter(line string) []string {
 		return cs[:pos]
 		// return cs
 	} else {
-		cs := []string{"get-oper", "get-conf", "set", "validate", "commit"}
+		cs := []string{"get-oper", "get-conf", "delete", "set", "validate", "commit", "rpc"}
 		if len(tokens) > 0 {
 			n := 0
 			for _, x := range cs {
@@ -248,7 +248,7 @@ func main() {
 			liner2.AppendHistory(line)
 		}
 		switch {
-		case strings.HasPrefix(line, "set"):
+		case strings.HasPrefix(line, "set"), strings.HasPrefix(line, "delete"):
 			requestLine = line
 			slice := strings.Split(requestLine, " ")
 			log.Debug("Set line:", slice[1:])
@@ -262,7 +262,6 @@ func main() {
 			if mods[slice[1]] == nil {
 				mods[slice[1]] = getYangModule(s, slice[1])
 			}
-			break
 		case strings.HasPrefix(line, "get-conf"):
 			// TODO make common with set
 			requestLine = line
@@ -285,8 +284,7 @@ func main() {
 				}
 			}
 			sendNetconfRequest(s, requestLine, getConf)
-			break
-		case strings.HasPrefix(line, "get-oper"):
+		case strings.HasPrefix(line, "get-oper"), strings.HasPrefix(line, "rpc"):
 			// TODO make common with set
 			requestLine = line
 			slice := strings.Split(requestLine, " ")
@@ -308,15 +306,19 @@ func main() {
 					continue
 				}
 			}
-			netconfData, _ := sendNetconfRequest(s, requestLine, getOper)
+			var op int
+			switch slice[0] {
+			case "get-oper":
+				op = getOper
+			case "rpc":
+				op = rpcOp
+			}
+			netconfData, _ := sendNetconfRequest(s, requestLine, op)
 			fmt.Printf("Request data: %v\n", netconfData)
-			break
 		case strings.HasPrefix(line, "validate"):
 			sendNetconfRequest(s, requestLine, validate)
-			break
 		case strings.HasPrefix(line, "commit"):
 			sendNetconfRequest(s, requestLine, commit)
-			break
 		default:
 		}
 		log.Debug("you said:", strconv.Quote(line))
