@@ -4,10 +4,11 @@ package main
 // set ANDROID_HOME=C:\Users\Jon\AppData\Local\Android\Sdk
 
 import (
-	"log"
 	"net"
 	"strings"
 	"sync"
+
+	log "github.com/sirupsen/logrus"
 
 	"golang.org/x/crypto/ssh"
 
@@ -92,26 +93,26 @@ func sshToWeb(web net.Conn, ssh *netconf.TransportSSH) {
 	for {
 		total = 0
 		for {
-			log.Println("Before read")
+			log.Debugln("Before read")
 			n, err = ssh.ReadWriteCloser.Read(bytes[total:])
-			log.Println("After read")
+			log.Debugln("After read")
 			if err != nil {
 				log.Printf("NC read err: %v\n", err)
 				return
 			} else {
 				// log.Printf("NC read: got %d bytes: %s\n", n, string(bytes))
-				log.Printf("NC read: got %d bytes\n", n)
+				log.Debugf("NC read: got %d bytes\n", n)
 				// bytes2 = append(bytes2, bytes[:n]...)
 				total += n
 				if strings.Contains(string(bytes), msgSeperator) ||
 					strings.Contains(string(bytes), msgSeperator_v11) {
-					log.Printf("NC read: got end marker\n")
+					log.Debugf("NC read: got end marker\n")
 					// log.Printf("NC read: %v \n%v\n", bytes, bytes2[total-4096:total])
 					break
 				}
 			}
 		}
-		// log.Printf("Ws write: %d bytes %v\n", total, bytes2[total-100:total])
+		// log.Printf("Ws write: %d bytes %v\n", total, bytes[total-100:total])
 		err = wsutil.WriteServerBinary(web, bytes[:total])
 		if err != nil {
 			log.Printf("WS write err: %v\n", err)
@@ -128,6 +129,7 @@ func main() {
 	listener, err := net.Listen("tcp", ":12345")
 	if err != nil {
 		// handle error
+		panic(err)
 	}
 	for {
 		wg.Add(2)
@@ -143,13 +145,16 @@ func main() {
 		// err = t.Dial("sjc24lab-srv7:10007", sshConfig)
 		err = t.Dial("172.26.228.148:64374", sshConfig)
 		if err != nil {
-			t.Close()
+			// t.Close()
 			panic(err)
+		} else {
+			// defer t.Close()
 		}
+		println("Connected!")
 
 		go webToSSH(conn, &t)
 		go sshToWeb(conn, &t)
 
-		wg.Wait()
+		// wg.Wait()
 	}
 }

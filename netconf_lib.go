@@ -81,6 +81,7 @@ func listYang(path string) []string {
 	if len(tokens) >= 2 {
 		// We have a module name; check for partial or incorrect
 		if i := sort.SearchStrings(modNames, tokens[1]); i == len(modNames) || modNames[i] != tokens[1] {
+			log.Debugf("didn't find %s in %v, returning all, 1", tokens[1], len(modNames))
 			return modNames
 		}
 		if mods[tokens[1]] == nil {
@@ -88,6 +89,7 @@ func listYang(path string) []string {
 		}
 		mod := mods[tokens[1]]
 		if mod == nil {
+			log.Debugf("didn't find %s in %v, returning all, 2", tokens[1], len(mods))
 			return modNames
 		}
 
@@ -331,7 +333,7 @@ func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
 		 </get-schema>
 	 `))
 	if error != nil {
-		fmt.Printf("Request reply error: %v\n", error)
+		fmt.Printf("Request reply error1: %v\n", error)
 		return nil
 	}
 	log.Debugf("Request reply: %v, error: %v\n", reply.Data, error)
@@ -510,7 +512,9 @@ func getSchemaList(s *netconf.Session) []string {
     </filter>
     </get>`))
 	if error != nil {
-		fmt.Printf("Request reply error: %v\n", error)
+		fmt.Printf("Request reply error2: %v\n", error)
+		// panic(error)
+		return nil
 	}
 	// fmt.Printf("Request reply: %v, error: %v\n", reply.Data[0:1000], error)
 	schemaReply := schemaReply{}
@@ -518,7 +522,7 @@ func getSchemaList(s *netconf.Session) []string {
 	//fmt.Printf("Request reply: %v, error: %v\n", schemaReply.Rest.Rest.Schemas[0], err)
 	//fmt.Printf("Request reply: %v, error: %v\n", schemaReply.Rest.Rest.Schemas[99].Identifier, err)
 	if error != nil {
-		fmt.Printf("Request reply error: %v\n", error)
+		fmt.Printf("Request reply error3: %v\n", error)
 	}
 
 	var schStrings []string

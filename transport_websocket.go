@@ -44,7 +44,7 @@ func (t *TransportWebSocket) Read(p []byte) (int, error) {
 			log.Printf("Ws read err: %v\n", err)
 			return 0, err
 		}
-		// log.Printf("Ws read: %v %v\n", mt, string(t.lastMsg))
+		// log.Printf("Ws read: %v\n", string(t.lastMsg))
 	}
 
 	var bytesCopied int = 0
