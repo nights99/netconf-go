@@ -23,12 +23,12 @@ import (
 // Array of available Yang modules
 var modNames []string
 
-var completer = readline.NewPrefixCompleter(
-	readline.PcItem("set", readline.PcItemDynamic(listYang)),
-	readline.PcItem("get-conf", readline.PcItemDynamic(listYang)),
-	readline.PcItem("get-oper", readline.PcItemDynamic(listYang)),
-	readline.PcItem("validate"),
-	readline.PcItem("commit"))
+// var completer = readline.NewPrefixCompleter(
+// 	readline.PcItem("set", readline.PcItemDynamic(listYang)),
+// 	readline.PcItem("get-conf", readline.PcItemDynamic(listYang)),
+// 	readline.PcItem("get-oper", readline.PcItemDynamic(listYang)),
+// 	readline.PcItem("validate"),
+// 	readline.PcItem("commit"))
 
 var historyFile = filepath.Join(os.TempDir(), ".liner_example_history")
 

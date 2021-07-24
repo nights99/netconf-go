@@ -32,6 +32,10 @@ func getEntry(this js.Value, args []js.Value) interface{} {
 
 	for i := 1; i < args[0].Length(); i++ {
 		v := args[0].Index(i)
+		// log.Printf("Bar77: %v %v %v", v, i, entry)
+		if v.String() == "" || entry == nil {
+			break
+		}
 		entry = entry.Dir[v.String()]
 	}
 
@@ -117,8 +121,8 @@ func jsonWrapper(this js.Value, args []js.Value) interface{} {
 	return promise
 }
 
-func sendNetconfRequest3(resolve *js.Value, req []string) {
-	netconfData, data := sendNetconfRequest(globalSession, strings.Join(req, " "), getOper)
+func sendNetconfRequest3(resolve *js.Value, req []string, reqType int) {
+	netconfData, data := sendNetconfRequest(globalSession, strings.Join(req, " "), reqType)
 	fmt.Printf("sendNetconfRequest3: %v, %v\n", netconfData, data)
 
 	if resolve != nil {
@@ -127,17 +131,24 @@ func sendNetconfRequest3(resolve *js.Value, req []string) {
 }
 
 func sendNetconfRequest1(this js.Value, args []js.Value) interface{} {
-	log.Infoln("Go entry")
+	log.Infoln("Go entry", args[1])
 	slice := make([]string, args[0].Length())
 	for i := 0; i < args[0].Length(); i++ {
 		slice[i] = args[0].Index(i).String()
 	}
-	slice = append([]string{"get-oper"}, slice...)
+	slice = append([]string{args[1].String()}, slice...)
+	var reqType int
+	switch args[1].String() {
+	case "commit":
+		reqType = commit
+	default:
+		reqType = getOper
+	}
 
 	promise := js.Global().Get("Promise").New(js.FuncOf(
 		func(this js.Value, args []js.Value) interface{} {
 			resolve := args[0]
-			go sendNetconfRequest3(&resolve, slice)
+			go sendNetconfRequest3(&resolve, slice, reqType)
 			return nil
 		},
 	))
