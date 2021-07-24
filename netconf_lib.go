@@ -66,8 +66,13 @@ var mods = map[string]*yang.Module{}
 
 var globalSession *netconf.Session
 
+// TODO Two problems to handle augments:
+// 1. User has to go to augment module first, to augment the model, then back to the augmented model.
+// 2. Need to tag augmented requests with the namespace.
+
 func listYang(path string) []string {
 	log.Debugf("listYang called on path: %s", path)
+	// yang.ParseOptions.IgnoreSubmoduleCircularDependencies = true
 	names := make([]string, 0)
 	/*files, _ := ioutil.ReadDir(path)
 	  for _, f := range files {
@@ -81,6 +86,7 @@ func listYang(path string) []string {
 	if len(tokens) >= 2 {
 		// We have a module name; check for partial or incorrect
 		if i := sort.SearchStrings(modNames, tokens[1]); i == len(modNames) || modNames[i] != tokens[1] {
+			log.Debugf("didn't find %s in %v, returning all, 1", tokens[1], len(modNames))
 			return modNames
 		}
 		if mods[tokens[1]] == nil {
@@ -88,6 +94,7 @@ func listYang(path string) []string {
 		}
 		mod := mods[tokens[1]]
 		if mod == nil {
+			log.Debugf("didn't find %s in %v, returning all, 2", tokens[1], len(mods))
 			return modNames
 		}
 
@@ -107,6 +114,7 @@ func listYang(path string) []string {
 							// @@@ Check whether list key has been specified or not
 							i := strings.Index(e, "=")
 							// fmt.Printf("Compare %v to %v, %d, %d\n", e, entry.Key, i, len(e))
+							// @@@ This is horrible, needs fixing, and messes up the web code.
 							if i == -1 || i == len(e)-1 || (e == tokens[len(tokens)-1] && !strings.HasSuffix(path, " ")) {
 								tokens = tokens[:len(tokens)-1]
 								deletedLastToken = true
@@ -123,14 +131,18 @@ func listYang(path string) []string {
 			}
 		}
 		if entry != nil {
-			log.Debugf("Entry: kind %v dir %v Uses: %v", entry.Kind, entry.Dir, entry.Errors)
+			log.Debugf("Entry: %v kind %v dir %v Errors: %v Augments: %v Augmented-by: %v Uses: %v", entry.Name, entry.Kind, entry.Dir, entry.Errors, entry.Augmented, entry.Augments, entry.Uses)
+			if entry.Prefix != nil {
+				// TODO Need to store the prefix somewhere and add it when constructing the request.
+				log.Debugln("Found prefix: ", entry.Prefix.Parent.(*yang.Module).Namespace.Name)
+			}
 		}
 		if entry.IsList() {
 			fmt.Printf("Enter list key (%s, %s, %v)\n", entry.Key, entry.Dir[entry.Key].Description, entry.Dir[entry.Key].Type.Name)
 			// fmt.Printf("list key tokens: %v\n", tokens)
 			e := tokens[len(tokens)-1]
 			i := strings.Index(e, "=")
-			// fmt.Printf("Compare %v to %v, %d, %d\n", e, entry.Key, i, len(e))
+			fmt.Printf("Compare %v to %v, %d, %d\n", e, entry.Key, i, len(e))
 			// if i == -1 || i == len(e)-1 {
 			if i == -1 || (!deletedLastToken && !strings.HasSuffix(path, " ")) {
 				if entry.Dir[entry.Key].Type.Name == "Interface-name" {
@@ -157,6 +169,10 @@ func listYang(path string) []string {
 			for s := range entry.Dir {
 				names = append(names, strings.Join(tokens[1:], " ")+" "+s)
 			}
+		}
+		for _, s := range mod.Augment {
+			log.Debugln("Mod augment: ", s.Name)
+			names = append(names, strings.Join(tokens[1:], " ")+" "+s.Name)
 		}
 
 		// 	if len(tokens) > 3 {
@@ -331,10 +347,10 @@ func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
 		 </get-schema>
 	 `))
 	if error != nil {
-		fmt.Printf("Request reply error: %v\n", error)
+		fmt.Printf("Request reply error1: %v\n", error)
 		return nil
 	}
-	log.Debugf("Request reply: %v, error: %v\n", reply.Data, error)
+	// log.Debugf("Request reply: %v, error: %v\n", reply.Data, error)
 	re, _ := regexp.Compile("\n#[0-9]+\n")
 	// strs := re.FindAllStringSubmatch(reply.Data, 10)
 	// fmt.Printf("%v\n", strs)
@@ -357,7 +373,7 @@ func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
 	}
 	if mod != nil {
 		for _, i := range mod.Include {
-			log.Debugf("Mod: %v %v", mod.Name, i)
+			log.Debugf("Mod include: %v %v", mod.Name, i)
 			// Add check here whether we already have the submodule; if not get it, and note we need to reprocess this module further down.
 			if ms.Modules[i.Name] == nil && ms.SubModules[i.Name] == nil {
 				submod := getYangModule(globalSession, i.Name)
@@ -373,7 +389,7 @@ func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
 	}
 	if mod != nil {
 		for _, i := range mod.Import {
-			log.Debugf("Mod: %v %v", mod.Name, i)
+			log.Debugf("Mod import: %v %v", mod.Name, i)
 			// Add check here whether we already have the submodule; if not get it, and note we need to reprocess this module further down.
 			if ms.Modules[i.Name] == nil && ms.SubModules[i.Name] == nil {
 				submod := getYangModule(globalSession, i.Name)
@@ -488,6 +504,7 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 				break
 			}
 		}
+		// TODO Handle bool/presence type items
 		fmt.Println("Data: ", theString)
 
 	}
@@ -510,7 +527,9 @@ func getSchemaList(s *netconf.Session) []string {
     </filter>
     </get>`))
 	if error != nil {
-		fmt.Printf("Request reply error: %v\n", error)
+		fmt.Printf("Request reply error2: %v\n", error)
+		// panic(error)
+		return nil
 	}
 	// fmt.Printf("Request reply: %v, error: %v\n", reply.Data[0:1000], error)
 	schemaReply := schemaReply{}
@@ -518,7 +537,7 @@ func getSchemaList(s *netconf.Session) []string {
 	//fmt.Printf("Request reply: %v, error: %v\n", schemaReply.Rest.Rest.Schemas[0], err)
 	//fmt.Printf("Request reply: %v, error: %v\n", schemaReply.Rest.Rest.Schemas[99].Identifier, err)
 	if error != nil {
-		fmt.Printf("Request reply error: %v\n", error)
+		fmt.Printf("Request reply error3: %v\n", error)
 	}
 
 	var schStrings []string

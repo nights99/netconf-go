@@ -35,6 +35,8 @@ func (t *TransportWebSocket) Dial(address string, port int) error {
 
 func (t *TransportWebSocket) Read(p []byte) (int, error) {
 	// println("Read called")
+	ctx, cancel = context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
 	if t.lastMsg == nil {
 		t.offset = 0
 		// var mt websocket.MessageType
@@ -44,7 +46,7 @@ func (t *TransportWebSocket) Read(p []byte) (int, error) {
 			log.Printf("Ws read err: %v\n", err)
 			return 0, err
 		}
-		// log.Printf("Ws read: %v %v\n", mt, string(t.lastMsg))
+		// log.Printf("Ws read: %v\n", string(t.lastMsg))
 	}
 
 	var bytesCopied int = 0
@@ -75,6 +77,8 @@ func (t *TransportWebSocket) Read(p []byte) (int, error) {
 func (t *TransportWebSocket) Write(p []byte) (int, error) {
 	// log.Printf("Write called %d bytes %v\n", len(p), string(p))
 
+	ctx, cancel = context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
 	err := t.wsConn.Write(ctx, websocket.MessageBinary, p)
 	if err != nil {
 		log.Printf("Ws write err: %v\n", err)
@@ -95,6 +99,7 @@ func (t *TransportWebSocket) Close() error {
 func Connect(address string, port int) *websocket.Conn {
 	var err error
 	ctx, cancel = context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
 
 	ws, _, err := websocket.Dial(ctx, "ws://"+address+":"+strconv.Itoa(port), nil)
 	if err != nil {
