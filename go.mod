@@ -7,6 +7,7 @@ require (
 	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e
 	github.com/davrodpin/mole v1.0.1 // indirect
 	github.com/go-delve/delve v1.6.0 // indirect
+	github.com/go-test/deep v1.0.7 // indirect
 	github.com/gobwas/ws v1.0.2
 	github.com/google/go-dap v0.5.0 // indirect
 	github.com/mattn/go-colorable v0.1.8 // indirect
@@ -26,6 +27,10 @@ require (
 	nhooyr.io/websocket v1.8.6
 )
 
-replace github.com/Juniper/go-netconf => ./src/github.com/Juniper/go-netconf/
+// replace github.com/Juniper/go-netconf => ./src/github.com/Juniper/go-netconf/
+// replace github.com/Juniper/go-netconf => ./go-netconf/
+replace github.com/Juniper/go-netconf => github.com/nights99/go-netconf v0.1.2-0.20210724124515-822f771b087f
 
+// Just do "go get github.com/nights99/go-netconf@chunk_read" and it fills this in?
 replace github.com/openconfig/goyang => github.com/nights99/goyang v0.2.5-0.20210118142943-720a812d72ab
+// replace github.com/openconfig/goyang => ./goyang/
