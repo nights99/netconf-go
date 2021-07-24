@@ -27,7 +27,7 @@ type TransportWebSocket struct {
 
 // Dial x
 func (t *TransportWebSocket) Dial(address string, port int) error {
-	t.wsConn = Connect(address, port)
+	t.wsConn, _ = Connect(address, port)
 
 	t.ReadWriteCloser = t
 	return nil
@@ -96,19 +96,20 @@ func (t *TransportWebSocket) Close() error {
 }
 
 // Connect ...
-func Connect(address string, port int) *websocket.Conn {
+func Connect(address string, port int) (*websocket.Conn, error) {
 	var err error
 	ctx, cancel = context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
 	ws, _, err := websocket.Dial(ctx, "ws://"+address+":"+strconv.Itoa(port), nil)
 	if err != nil {
-		log.Fatal("Failed to connect: ", err)
+		log.Panic("Failed to connect: ", err)
+		return nil, err
 	}
 
 	fmt.Printf("Connected to %s:%d\n", address, port)
 	ws.SetReadLimit(1024 * 1024)
-	return ws
+	return ws, nil
 }
 
 // DialWebSocket x

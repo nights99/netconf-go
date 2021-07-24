@@ -5,13 +5,20 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Juniper/go-netconf/netconf"
 	"github.com/openconfig/goyang/pkg/yang"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestWS(t *testing.T) {
 	// log.SetLevel(log.DebugLevel)
 	ms = yang.NewModules()
-	s, err := DialWebSocket("localhost", 12345)
+	var s *netconf.Session
+	var err error
+	success := assert.Panics(t, func() { s, err = DialWebSocket("localhost", 12345) })
+	if success {
+		return
+	}
 	println("Foo:", s, err)
 	modNames = getSchemaList(s)
 	fmt.Printf("Modname: %v\n", modNames[:3])

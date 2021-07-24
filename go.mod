@@ -19,6 +19,7 @@ require (
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.1.3 // indirect
+	github.com/stretchr/testify v1.7.0 // indirect
 	go.starlark.net v0.0.0-20210429133630-0c63ff3779a6 // indirect
 	golang.org/dl v0.0.0-20210423174834-f798e20c9ec1 // indirect
 	golang.org/x/arch v0.0.0-20210427114910-4d4a2a2eb4cf // indirect
@@ -33,4 +34,5 @@ replace github.com/Juniper/go-netconf => github.com/nights99/go-netconf v0.1.2-0
 
 // Just do "go get github.com/nights99/go-netconf@chunk_read" and it fills this in?
 replace github.com/openconfig/goyang => github.com/nights99/goyang v0.2.5-0.20210118142943-720a812d72ab
+
 // replace github.com/openconfig/goyang => ./goyang/
