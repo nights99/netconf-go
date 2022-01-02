@@ -285,7 +285,8 @@ func main() {
 					continue
 				}
 			}
-			sendNetconfRequest(s, requestLine, getConf)
+			netconfData, _ := sendNetconfRequest(s, requestLine, getConf)
+			fmt.Printf("Request data: %v\n", netconfData)
 		case strings.HasPrefix(line, "get-oper"), strings.HasPrefix(line, "rpc"):
 			// TODO make common with set
 			requestLine = line

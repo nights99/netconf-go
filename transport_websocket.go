@@ -14,6 +14,7 @@ import (
 	"nhooyr.io/websocket"
 )
 
+//lint:ignore U1000 x
 var cancel context.CancelFunc
 var ctx context.Context
 

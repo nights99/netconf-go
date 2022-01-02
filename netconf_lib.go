@@ -134,36 +134,48 @@ func listYang(path string) []string {
 			log.Debugf("Entry: %v kind %v dir %v Errors: %v Augments: %v Augmented-by: %v Uses: %v", entry.Name, entry.Kind, entry.Dir, entry.Errors, entry.Augmented, entry.Augments, entry.Uses)
 			if entry.Prefix != nil {
 				// TODO Need to store the prefix somewhere and add it when constructing the request.
-				log.Debugln("Found prefix: ", entry.Prefix.Parent.(*yang.Module).Namespace.Name)
+				switch entry.Prefix.Parent.(type) {
+				case *yang.Module:
+					log.Debugln("Found prefix: ", entry.Prefix.Parent.(*yang.Module).Namespace.Name)
+					break
+				case *yang.BelongsTo:
+					log.Debugln("Found prefix: ", entry.Prefix.Parent.(*yang.BelongsTo).Name)
+				}
 			}
 		}
 		if entry.IsList() {
-			fmt.Printf("Enter list key (%s, %s, %v)\n", entry.Key, entry.Dir[entry.Key].Description, entry.Dir[entry.Key].Type.Name)
+			// TODO Need to support multiple keys properly here
+			keys := strings.Split(entry.Key, " ")
+			fmt.Printf("Enter list key (%s, %s, %v)\n", keys[0], entry.Dir[keys[0]].Description, entry.Dir[keys[0]].Type.Name)
 			// fmt.Printf("list key tokens: %v\n", tokens)
 			e := tokens[len(tokens)-1]
 			i := strings.Index(e, "=")
 			fmt.Printf("Compare %v to %v, %d, %d\n", e, entry.Key, i, len(e))
 			// if i == -1 || i == len(e)-1 {
 			if i == -1 || (!deletedLastToken && !strings.HasSuffix(path, " ")) {
-				if entry.Dir[entry.Key].Type.Name == "Interface-name" {
+				if entry.Dir[keys[0]].Type.Name == "Interface-name" {
 					intfs := GetInterfaces(globalSession)
 					println(intfs)
 					for _, intf := range intfs {
-						names = append(names, strings.Join(tokens[1:], " ")+" "+entry.Key+"="+intf)
+						names = append(names, strings.Join(tokens[1:], " ")+" "+keys[0]+"="+intf)
 					}
-				} else if entry.Dir[entry.Key].Type.Name == "Node-id" {
+				} else if entry.Dir[keys[0]].Type.Name == "Node-id" {
 					nodes := GetNodes(globalSession)
 					println(nodes)
 					for _, node := range nodes {
-						names = append(names, strings.Join(tokens[1:], " ")+" "+entry.Key+"="+node)
+						names = append(names, strings.Join(tokens[1:], " ")+" "+keys[0]+"="+node)
 					}
 				} else {
-					names = append(names, strings.Join(tokens[1:], " ")+" "+entry.Key+"=")
+					names = append(names, strings.Join(tokens[1:], " ")+" "+keys[0]+"=")
 				}
 			} else {
 				for s := range entry.Dir {
 					names = append(names, strings.Join(tokens[1:], " ")+" "+s)
 				}
+			}
+		} else if entry != nil && entry.RPC != nil {
+			for s := range entry.RPC.Input.Dir {
+				names = append(names, strings.Join(tokens[1:], " ")+" "+s)
 			}
 		} else if entry != nil && entry.Kind == yang.DirectoryEntry {
 			for s := range entry.Dir {
@@ -249,7 +261,7 @@ func emitNestedXML(enc *xml.Encoder, paths []netconfPathElement, value string, r
 		enc.EncodeToken(start3.End())
 	}
 	if len(paths) > 1 {
-		emitNestedXML(enc, paths[1:], "", reqType)
+		emitNestedXML(enc, paths[1:], value, reqType)
 	} else if value != "" {
 		enc.EncodeToken(xml.CharData(value))
 	}
@@ -356,9 +368,9 @@ func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
 	// fmt.Printf("%v\n", strs)
 	reply.Data = re.ReplaceAllLiteralString(reply.Data, "")
 	yangReply := yangReply{}
-	err := xml.Unmarshal([]byte(reply.Data), &yangReply)
+	_ = xml.Unmarshal([]byte(reply.Data), &yangReply)
 	//fmt.Printf("Request reply: %v, error: %v\n", yangReply, err)
-	err = ms.Parse(yangReply.Rest, yangMod)
+	err := ms.Parse(yangReply.Rest, yangMod)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		panic("Error")
