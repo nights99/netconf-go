@@ -71,6 +71,8 @@ var globalSession *netconf.Session
 // 2. Need to tag augmented requests with the namespace.
 
 func listYang(path string) []string {
+	var didAugment bool = false
+	var currentPrefix string
 	log.Debugf("listYang called on path: %s", path)
 	// yang.ParseOptions.IgnoreSubmoduleCircularDependencies = true
 	names := make([]string, 0)
@@ -99,6 +101,8 @@ func listYang(path string) []string {
 		}
 
 		entry := yang.ToEntry(mod)
+		currentPrefix = mod.Namespace.Name
+		println("currentPrefix", currentPrefix)
 		var deletedLastToken bool = false
 		for _, e := range tokens[2:] {
 			if entry != nil && e != "" {
@@ -120,7 +124,33 @@ func listYang(path string) []string {
 								deletedLastToken = true
 							}
 						} else {
-							tokens = tokens[:len(tokens)-1]
+							// Check for augment type path
+							// - get prefix - bit before colon
+							// - look up prefix in imports - gives you the module being augmented
+							if strings.Contains(e, ":") {
+								foos := strings.FieldsFunc(e,
+									func(r rune) bool {
+										return r == ':' || r == '/'
+									},
+								)
+								// println("Possible augment prefix:", foos[0])
+								var augMod *yang.Import
+								for _, augMod = range mod.Import {
+									if augMod.Prefix.Name == foos[0] {
+										// println("Found aug module:", augMod.Name)
+										break
+									}
+								}
+								if augMod.Prefix.Name == foos[0] {
+									// println(augMod.Name, foos[1], foos[3])
+									m2 := yang.ToEntry(augMod.Module)
+									entry = m2.Dir[foos[1]].Dir[foos[3]]
+									tokens = []string{tokens[0], augMod.Name, foos[1], foos[3]}
+									didAugment = true
+								}
+							} else {
+								tokens = tokens[:len(tokens)-1]
+							}
 						}
 					}
 				}
@@ -137,10 +167,19 @@ func listYang(path string) []string {
 				switch entry.Prefix.Parent.(type) {
 				case *yang.Module:
 					log.Debugln("Found prefix: ", entry.Prefix.Parent.(*yang.Module).Namespace.Name)
+					println("Found prefix: ", entry.Prefix.Parent.(*yang.Module).Namespace.Name)
 					break
 				case *yang.BelongsTo:
-					log.Debugln("Found prefix: ", entry.Prefix.Parent.(*yang.BelongsTo).Name)
+					log.Debugln("Found prefix2: ", entry.Prefix.Parent.(*yang.BelongsTo).Name)
+					println("Found prefix2: ", entry.Prefix.Parent.(*yang.BelongsTo).Name)
 				}
+				if currentPrefix != entry.Prefix.Parent.(*yang.Module).Namespace.Name {
+					currentPrefix = entry.Prefix.Parent.(*yang.Module).Namespace.Name
+					println("Changed prefix:", currentPrefix)
+					// Add prefix to current i.e. last token.
+					tokens[len(tokens)-1] = currentPrefix + "@" + tokens[len(tokens)-1]
+				}
+
 			}
 		}
 		if entry.IsList() {
@@ -150,7 +189,7 @@ func listYang(path string) []string {
 			// fmt.Printf("list key tokens: %v\n", tokens)
 			e := tokens[len(tokens)-1]
 			i := strings.Index(e, "=")
-			fmt.Printf("Compare %v to %v, %d, %d\n", e, entry.Key, i, len(e))
+			// fmt.Printf("Compare %v to %v, %d, %d\n", e, entry.Key, i, len(e))
 			// if i == -1 || i == len(e)-1 {
 			if i == -1 || (!deletedLastToken && !strings.HasSuffix(path, " ")) {
 				if entry.Dir[keys[0]].Type.Name == "Interface-name" {
@@ -184,7 +223,10 @@ func listYang(path string) []string {
 		}
 		for _, s := range mod.Augment {
 			log.Debugln("Mod augment: ", s.Name)
-			names = append(names, strings.Join(tokens[1:], " ")+" "+s.Name)
+			if !didAugment {
+				// This isn't quite right.
+				names = append(names, strings.Join(tokens[1:], " ")+" "+s.Name)
+			}
 		}
 
 		// 	if len(tokens) > 3 {
@@ -249,7 +291,12 @@ func emitNestedXML(enc *xml.Encoder, paths []netconfPathElement, value string, r
 			// Use remove rather than delete so as not to error if config doesn't exist.
 			Attr: []xml.Attr{{Name: xml.Name{Local: "operation", Space: "urn:ietf:params:xml:ns:netconf:base:1.0"}, Value: "remove"}}}
 	} else {
-		start3 = xml.StartElement{Name: xml.Name{Local: paths[0].name}}
+		if strings.Contains(paths[0].name, "@") {
+			elems := strings.Split(paths[0].name, "@")
+			start3 = xml.StartElement{Name: xml.Name{Space: elems[0], Local: elems[1]}}
+		} else {
+			start3 = xml.StartElement{Name: xml.Name{Local: paths[0].name}}
+		}
 
 	}
 	err := enc.EncodeToken(start3)
@@ -470,6 +517,7 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 		fmt.Fprintln(os.Stderr, err)
 	}
 	log.Debug(string(xml2))
+	println(string(xml2))
 
 	reply, error := s.Exec(ncRequest)
 
