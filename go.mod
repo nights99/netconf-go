@@ -16,6 +16,7 @@ require (
 	golang.org/x/crypto v0.0.0-20200728195943-123391ffb6de
 	golang.org/x/sys v0.0.0-20210426230700-d19ff857e887
 	nhooyr.io/websocket v1.8.6
+	github.com/gin-gonic/gin v1.7.0
 )
 
 require (
