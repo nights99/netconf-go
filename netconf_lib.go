@@ -173,7 +173,7 @@ func listYang(path string) []string {
 					log.Debugln("Found prefix2: ", entry.Prefix.Parent.(*yang.BelongsTo).Name)
 					println("Found prefix2: ", entry.Prefix.Parent.(*yang.BelongsTo).Name)
 				}
-				if currentPrefix != entry.Prefix.Parent.(*yang.Module).Namespace.Name {
+				if currentPrefix != entry.Prefix.Parent.(*yang.Module).Namespace.Name && !didAugment {
 					currentPrefix = entry.Prefix.Parent.(*yang.Module).Namespace.Name
 					println("Changed prefix:", currentPrefix)
 					// Add prefix to current i.e. last token.
