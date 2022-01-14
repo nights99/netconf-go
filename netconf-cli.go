@@ -1,3 +1,4 @@
+//go:build !wasm
 // +build !wasm
 
 package main
@@ -207,6 +208,7 @@ func main() {
 	var liner2 *liner.State = liner.NewLiner()
 	defer liner2.Close()
 	liner2.SetCompleter(linerCompleter)
+	// TODO - look at this option again and see if its needed
 	liner2.SetTabCompletionStyle(liner.TabPrints)
 	if f, err := os.Open(historyFile); err == nil {
 		liner2.ReadHistory(f)
@@ -314,6 +316,7 @@ func main() {
 			case "get-oper":
 				op = getOper
 			case "rpc":
+				// TODO - rpc arg completion not working?
 				op = rpcOp
 			}
 			netconfData, _ := sendNetconfRequest(s, requestLine, op)
