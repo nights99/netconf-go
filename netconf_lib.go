@@ -134,24 +134,39 @@ func listYang(path string) []string {
 							// - get prefix - bit before colon
 							// - look up prefix in imports - gives you the module being augmented
 							if strings.Contains(e, ":") {
-								foos := strings.FieldsFunc(e,
+								aug_tokens := strings.FieldsFunc(e,
 									func(r rune) bool {
 										return r == ':' || r == '/'
 									},
 								)
-								// println("Possible augment prefix:", foos[0])
+								// For now, assume the augment is for the same
+								// module; check this explicitly to at least
+								// make this assumption obvious.
+								for i := 2; i < len(aug_tokens); i += 2 {
+									if aug_tokens[i] != aug_tokens[0] {
+										panic("Augments with different prefixes not currently support: " + e)
+									}
+								}
+								// println("Possible augment prefix:", aug_tokens[0])
 								var augMod *yang.Import
 								for _, augMod = range mod.Import {
-									if augMod.Prefix.Name == foos[0] {
+									if augMod.Prefix.Name == aug_tokens[0] {
 										// println("Found aug module:", augMod.Name)
 										break
 									}
 								}
-								if augMod.Prefix.Name == foos[0] {
-									// println(augMod.Name, foos[1], foos[3])
+								if augMod.Prefix.Name == aug_tokens[0] {
+									// println(augMod.Name, aug_tokens[1], aug_tokens[3])
 									m2 := yang.ToEntry(augMod.Module)
-									entry = m2.Dir[foos[1]].Dir[foos[3]]
-									tokens = []string{tokens[0], augMod.Name, foos[1], foos[3]}
+
+									// Find entry in the augmented module, and
+									// set the tokens to point there.
+									entry = m2
+									tokens = []string{tokens[0], augMod.Name}
+									for i := 1; i < len(aug_tokens); i += 2 {
+										entry = entry.Dir[aug_tokens[i]]
+										tokens = append(tokens, aug_tokens[i])
+									}
 									didAugment = true
 								}
 							} else {
@@ -174,11 +189,11 @@ func listYang(path string) []string {
 				switch entry.Prefix.Parent.(type) {
 				case *yang.Module:
 					log.Debugln("Found prefix: ", entry.Prefix.Parent.(*yang.Module).Namespace.Name)
-					println("Found prefix: ", entry.Prefix.Parent.(*yang.Module).Namespace.Name)
+					// println("Found prefix: ", entry.Prefix.Parent.(*yang.Module).Namespace.Name)
 					prefix_ns = entry.Prefix.Parent.(*yang.Module).Namespace.Name
 				case *yang.BelongsTo:
 					log.Debugln("Found prefix2: ", entry.Prefix.Parent.(*yang.BelongsTo).Name)
-					println("Found prefix2: ", entry.Prefix.Parent.(*yang.BelongsTo).Name)
+					// println("Found prefix2: ", entry.Prefix.Parent.(*yang.BelongsTo).Name)
 					prefix_ns = entry.Prefix.Parent.(*yang.BelongsTo).Name
 				}
 				if currentPrefix != prefix_ns && !didAugment {
@@ -529,7 +544,6 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 		fmt.Fprintln(os.Stderr, err)
 	}
 	log.Debug(string(xml2))
-	println(string(xml2))
 
 	reply, error := s.Exec(ncRequest)
 
