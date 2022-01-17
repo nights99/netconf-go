@@ -109,6 +109,12 @@ func listYang(path string) []string {
 				log.Debugf("Foo: e %v kind %v %v\n", e, entry.Kind, entry)
 				if entry.Kind == yang.DirectoryEntry {
 					prevEntry := entry
+
+					// Check if a module prefix has been specified and if so strip it.
+					if strings.Contains(e, "@") {
+						e = strings.Split(e, "@")[1]
+					}
+
 					entry = entry.Dir[e]
 					if entry == nil {
 						log.Debugf("Couldn't find %v in %v", e, prevEntry.Dir)
@@ -176,8 +182,12 @@ func listYang(path string) []string {
 				if currentPrefix != entry.Prefix.Parent.(*yang.Module).Namespace.Name && !didAugment {
 					currentPrefix = entry.Prefix.Parent.(*yang.Module).Namespace.Name
 					println("Changed prefix:", currentPrefix)
-					// Add prefix to current i.e. last token.
-					tokens[len(tokens)-1] = currentPrefix + "@" + tokens[len(tokens)-1]
+					// Add prefix to current i.e. last token, if it doesn't
+					// already have one.
+					// @@@ Should check prefix matches?
+					if !strings.Contains(tokens[len(tokens)-1], "@") {
+						tokens[len(tokens)-1] = currentPrefix + "@" + tokens[len(tokens)-1]
+					}
 				}
 
 			}
