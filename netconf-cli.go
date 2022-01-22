@@ -267,28 +267,7 @@ func main() {
 				mods[slice[1]] = getYangModule(s, slice[1])
 			}
 		case strings.HasPrefix(line, "get-conf"):
-			// TODO make common with set
-			requestLine = line
-			slice := strings.Split(requestLine, " ")
-			log.Debug("Set line:", slice[1:])
-
-			if len(slice) < 3 {
-				continue
-			}
-			// requestMap = expand(requestMap, slice[1:])
-			// log.Debugf("expand: %v\n", requestMap)
-
-			/*
-			 * If we don't know the module, read it from the router now.
-			 */
-			if mods[slice[1]] == nil {
-				mods[slice[1]] = getYangModule(s, slice[1])
-				if mods[slice[1]] == nil {
-					continue
-				}
-			}
-			netconfData, _ := sendNetconfRequest(s, requestLine, getConf)
-			fmt.Printf("Request data: %v\n", netconfData)
+			fallthrough
 		case strings.HasPrefix(line, "get-oper"), strings.HasPrefix(line, "rpc"):
 			// TODO make common with set
 			requestLine = line
@@ -318,6 +297,8 @@ func main() {
 			case "rpc":
 				// TODO - rpc arg completion not working?
 				op = rpcOp
+			case "get-conf":
+				op = getConf
 			}
 			netconfData, _ := sendNetconfRequest(s, requestLine, op)
 			fmt.Printf("Request data: %v\n", netconfData)
