@@ -53,14 +53,13 @@ func wordCompleter(line string, pos2 int) (head string, completions []string, ta
 		// cs = []string{longestcommon.Prefix(cs[:pos])}
 		// fmt.Printf("Found %v\n", cs)
 		// TODO Should we add a space on the end if we've found a completion?
-		var end string = ""
-		if len(cs) == 1 {
-			end = " "
+		if len(cs[:pos]) == 1 {
+			cs[0] += " "
 		}
 		if strings.HasSuffix(line, " ") {
-			return strings.Join(tokens, " ") + " ", cs[:pos], end
+			return strings.Join(tokens, " ") + " ", cs[:pos], ""
 		} else {
-			return strings.Join(tokens[:len(tokens)-1], " ") + " ", cs[:pos], end
+			return strings.Join(tokens[:len(tokens)-1], " ") + " ", cs[:pos], ""
 		}
 	} else {
 		cs := []string{"get-oper", "get-conf", "delete", "set", "validate", "commit", "rpc"}
@@ -77,7 +76,6 @@ func wordCompleter(line string, pos2 int) (head string, completions []string, ta
 		return "", cs, ""
 	}
 }
-
 
 var testMode = false
 
