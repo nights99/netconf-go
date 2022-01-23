@@ -170,17 +170,19 @@ func listYang(path string) []string {
 			log.Debugf("Entry: %v kind %v dir %v Errors: %v Augments: %v Augmented-by: %v Uses: %v", entry.Name, entry.Kind, entry.Dir, entry.Errors, entry.Augmented, entry.Augments, entry.Uses)
 			if entry.Prefix != nil {
 				// TODO Need to store the prefix somewhere and add it when constructing the request.
+				var prefix_ns string
 				switch entry.Prefix.Parent.(type) {
 				case *yang.Module:
 					log.Debugln("Found prefix: ", entry.Prefix.Parent.(*yang.Module).Namespace.Name)
 					println("Found prefix: ", entry.Prefix.Parent.(*yang.Module).Namespace.Name)
-					break
+					prefix_ns = entry.Prefix.Parent.(*yang.Module).Namespace.Name
 				case *yang.BelongsTo:
 					log.Debugln("Found prefix2: ", entry.Prefix.Parent.(*yang.BelongsTo).Name)
 					println("Found prefix2: ", entry.Prefix.Parent.(*yang.BelongsTo).Name)
+					prefix_ns = entry.Prefix.Parent.(*yang.BelongsTo).Name
 				}
-				if currentPrefix != entry.Prefix.Parent.(*yang.Module).Namespace.Name && !didAugment {
-					currentPrefix = entry.Prefix.Parent.(*yang.Module).Namespace.Name
+				if currentPrefix != prefix_ns && !didAugment {
+					currentPrefix = prefix_ns
 					println("Changed prefix:", currentPrefix)
 					// Add prefix to current i.e. last token, if it doesn't
 					// already have one.
@@ -206,20 +208,20 @@ func listYang(path string) []string {
 					intfs := GetInterfaces(globalSession)
 					println(intfs)
 					for _, intf := range intfs {
-						names = append(names, strings.Join(tokens[1:], " ")+" "+keys[0]+"="+intf)
+						names = append(names, keys[0]+"="+intf)
 					}
 				} else if entry.Dir[keys[0]].Type.Name == "Node-id" {
 					nodes := GetNodes(globalSession)
 					println(nodes)
 					for _, node := range nodes {
-						names = append(names, strings.Join(tokens[1:], " ")+" "+keys[0]+"="+node)
+						names = append(names, keys[0]+"="+node)
 					}
 				} else {
-					names = append(names, strings.Join(tokens[1:], " ")+" "+keys[0]+"=")
+					names = append(names, keys[0]+"=")
 				}
 			} else {
 				for s := range entry.Dir {
-					names = append(names, strings.Join(tokens[1:], " ")+" "+s)
+					names = append(names, s)
 				}
 			}
 		} else if entry != nil && entry.RPC != nil {
@@ -228,7 +230,7 @@ func listYang(path string) []string {
 			}
 		} else if entry != nil && entry.Kind == yang.DirectoryEntry {
 			for s := range entry.Dir {
-				names = append(names, strings.Join(tokens[1:], " ")+" "+s)
+				names = append(names, s)
 			}
 		}
 		for _, s := range mod.Augment {

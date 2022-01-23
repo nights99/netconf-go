@@ -10,7 +10,6 @@ setup.sh
 **/netconf-cli
 !**/netconf-cli/
 /main.wasm
-*vscode*
 *.tgz
 *.diff
 *.old

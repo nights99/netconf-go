@@ -24,41 +24,12 @@ import (
 // Array of available Yang modules
 var modNames []string
 
-// var completer = readline.NewPrefixCompleter(
-// 	readline.PcItem("set", readline.PcItemDynamic(listYang)),
-// 	readline.PcItem("get-conf", readline.PcItemDynamic(listYang)),
-// 	readline.PcItem("get-oper", readline.PcItemDynamic(listYang)),
-// 	readline.PcItem("validate"),
-// 	readline.PcItem("commit"))
-
 var historyFile = filepath.Join(os.TempDir(), ".liner_example_history")
 
-// type schemaJ struct {
-// 	Identifier string `xml:"identifier"`
-// 	//Version    string `xml:"version"`
-// 	//Format     string `xml:"format"`
-// 	//Namespace  string `xml:"namespace"`
-// 	//Location    string  `xml:"location"`
-// }
-
-// func expand(expandedMap map[string]interface{}, value []string) map[string]interface{} {
-// 	log.Debugf("map: %v, value: %s\n", expandedMap, value)
-// 	if len(value) == 1 {
-// 		expandedMap[value[0]] = ""
-// 	} else if len(value) == 2 {
-// 		expandedMap[value[0]] = value[1]
-// 	} else {
-// 		if expandedMap[value[0]] == nil {
-// 			expandedMap[value[0]] = make(map[string]interface{})
-// 		}
-// 		expandedMap[value[0]] = expand(expandedMap[value[0]].(map[string]interface{}), value[1:])
-// 	}
-
-// 	return expandedMap
-// }
-
-func linerCompleter(line string) []string {
+func wordCompleter(line string, pos2 int) (head string, completions []string, tail string) {
 	// fmt.Printf("Called with %v\n", line)
+
+	// TODO check if pos is end of line
 
 	tokens := strings.Fields(line)
 	log.Debugf("tokens: %d, %v", len(tokens), tokens)
@@ -71,16 +42,26 @@ func linerCompleter(line string) []string {
 		var pos int = 0
 		for _, e := range yangCompletions {
 			// fmt.Printf("Comparing '%s' and '%s'\n", e[strings.LastIndex(e, " ")+1:], tokens[len(tokens)-1])
-			if strings.HasPrefix(e[strings.LastIndex(e, " ")+1:], tokens[len(tokens)-1]) || strings.HasSuffix(line, " ") {
+			// if strings.HasPrefix(e[strings.LastIndex(e, " ")+1:], tokens[len(tokens)-1]) || strings.HasSuffix(line, " ") {
+			if strings.HasPrefix(e, tokens[len(tokens)-1]) || strings.HasSuffix(line, " ") {
 				// println("Found " + e)
-				cs[pos] = tokens[0] + " " + e
+				// cs[pos] = tokens[0] + " " + e
+				cs[pos] = e
 				pos++
 			}
 		}
 		// cs = []string{longestcommon.Prefix(cs[:pos])}
 		// fmt.Printf("Found %v\n", cs)
-		return cs[:pos]
-		// return cs
+		// TODO Should we add a space on the end if we've found a completion?
+		var end string = ""
+		if len(cs) == 1 {
+			end = " "
+		}
+		if strings.HasSuffix(line, " ") {
+			return strings.Join(tokens, " ") + " ", cs[:pos], end
+		} else {
+			return strings.Join(tokens[:len(tokens)-1], " ") + " ", cs[:pos], end
+		}
 	} else {
 		cs := []string{"get-oper", "get-conf", "delete", "set", "validate", "commit", "rpc"}
 		if len(tokens) > 0 {
@@ -93,9 +74,10 @@ func linerCompleter(line string) []string {
 			}
 			cs = cs[:n]
 		}
-		return cs
+		return "", cs, ""
 	}
 }
+
 
 var testMode = false
 
@@ -207,8 +189,7 @@ func main() {
 
 	var liner2 *liner.State = liner.NewLiner()
 	defer liner2.Close()
-	liner2.SetCompleter(linerCompleter)
-	// TODO - look at this option again and see if its needed
+	liner2.SetWordCompleter(wordCompleter)
 	liner2.SetTabCompletionStyle(liner.TabPrints)
 	if f, err := os.Open(historyFile); err == nil {
 		liner2.ReadHistory(f)

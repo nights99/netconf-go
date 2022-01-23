@@ -1,3 +1,4 @@
+//go:build wasm
 // +build wasm
 
 // GOOS=js GOARCH=wasm go build -o main.wasm
@@ -61,7 +62,7 @@ func doGetEntries(slice []string) {
 	for _, v := range entries {
 		// fmt.Printf("listYang returned %v\n", v)
 		x := strings.Split(v, " ")
-		webEntries = append(webEntries, x[len(x)-1:]...)
+		webEntries = append(webEntries, x...)
 	}
 
 	js.Global().Call("foo", strings.Join(webEntries, " "))
