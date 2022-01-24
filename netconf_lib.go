@@ -34,7 +34,7 @@ type netconfPathElement struct {
 }
 
 type netconfRequest struct {
-	ncEntry     yang.Entry
+	ncEntry     *yang.Entry
 	NetConfPath []netconfPathElement
 	Value       string
 	reqType     int
@@ -65,10 +65,6 @@ var ms *yang.Modules
 var mods = map[string]*yang.Module{}
 
 var globalSession *netconf.Session
-
-// TODO Two problems to handle augments:
-// 1. User has to go to augment module first, to augment the model, then back to the augmented model.
-// 2. Need to tag augmented requests with the namespace.
 
 func listYang(path string) []string {
 	var didAugment bool = false
@@ -102,7 +98,7 @@ func listYang(path string) []string {
 
 		entry := yang.ToEntry(mod)
 		currentPrefix = mod.Namespace.Name
-		println("currentPrefix", currentPrefix)
+		// println("currentPrefix", currentPrefix)
 		var deletedLastToken bool = false
 		for _, e := range tokens[2:] {
 			if entry != nil && e != "" {
@@ -184,7 +180,7 @@ func listYang(path string) []string {
 		if entry != nil {
 			log.Debugf("Entry: %v kind %v dir %v Errors: %v Augments: %v Augmented-by: %v Uses: %v", entry.Name, entry.Kind, entry.Dir, entry.Errors, entry.Augmented, entry.Augments, entry.Uses)
 			if entry.Prefix != nil {
-				// TODO Need to store the prefix somewhere and add it when constructing the request.
+				// Need to store the prefix somewhere and add it when constructing the request.
 				var prefix_ns string
 				switch entry.Prefix.Parent.(type) {
 				case *yang.Module:
@@ -285,7 +281,7 @@ func listYang(path string) []string {
 	return names
 }
 
-func newNetconfRequest(netconfEntry yang.Entry, Path []string, value string, requestType int, delete bool) *netconfRequest {
+func newNetconfRequest(netconfEntry *yang.Entry, Path []string, value string, requestType int, delete bool) *netconfRequest {
 	ncArray := make([]netconfPathElement, len(Path))
 	for i, p := range Path {
 		if strings.Contains(p, "=") {
@@ -370,7 +366,9 @@ func (nc *netconfRequest) MarshalMethod() string {
 			{name: "source", value: nil},
 			{name: "running", value: nil}},
 			"", nc.reqType)
-		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "filter"}})
+		if nc.ncEntry != nil {
+			enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "filter"}})
+		}
 	case getOper:
 		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "get"}})
 		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "filter"}, Attr: []xml.Attr{{Name: xml.Name{Local: "type"}, Value: "subtree"}}})
@@ -378,20 +376,23 @@ func (nc *netconfRequest) MarshalMethod() string {
 		// enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "rpc"}})
 	}
 
-	start2 := xml.StartElement{Name: xml.Name{Local: nc.NetConfPath[0].name, Space: nc.ncEntry.Namespace().Name}}
-	//fmt.Println(start2)
-	err := enc.EncodeToken(start2)
-	if err != nil {
-		fmt.Println(err)
-	}
+	var err error
+	if nc.ncEntry != nil {
+		start2 := xml.StartElement{Name: xml.Name{Local: nc.NetConfPath[0].name, Space: nc.ncEntry.Namespace().Name}}
+		//fmt.Println(start2)
+		err = enc.EncodeToken(start2)
+		if err != nil {
+			fmt.Println(err)
+		}
 
-	if len(nc.NetConfPath) > 1 {
-		emitNestedXML(enc, nc.NetConfPath[1:], nc.Value, nc.reqType)
-	}
+		if len(nc.NetConfPath) > 1 {
+			emitNestedXML(enc, nc.NetConfPath[1:], nc.Value, nc.reqType)
+		}
 
-	err = enc.EncodeToken(start2.End())
-	if err != nil {
-		fmt.Println(err)
+		err = enc.EncodeToken(start2.End())
+		if err != nil {
+			fmt.Println(err)
+		}
 	}
 	switch nc.reqType {
 	case commit:
@@ -406,7 +407,9 @@ func (nc *netconfRequest) MarshalMethod() string {
 			fmt.Println(err)
 		}
 	case getConf:
-		enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "filter"}})
+		if nc.ncEntry != nil {
+			enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "filter"}})
+		}
 		enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "get-config"}})
 	case getOper:
 		enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "filter"}})
@@ -526,12 +529,17 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 		fallthrough
 	case validate:
 		if slice[0] == "delete" {
-			ncRequest = newNetconfRequest(*yang.ToEntry(mods[slice[1]]), slice[2:], "", requestType, true)
+			ncRequest = newNetconfRequest(yang.ToEntry(mods[slice[1]]), slice[2:], "", requestType, true)
 		} else {
-			ncRequest = newNetconfRequest(*yang.ToEntry(mods[slice[1]]), slice[2:len(slice)-1], slice[len(slice)-1], requestType, false)
+			ncRequest = newNetconfRequest(yang.ToEntry(mods[slice[1]]), slice[2:len(slice)-1], slice[len(slice)-1], requestType, false)
 		}
 	case getOper, getConf, rpcOp:
-		ncRequest = newNetconfRequest(*yang.ToEntry(mods[slice[1]]), slice[2:], "", requestType, false)
+		if len(slice) >= 3 {
+			ncRequest = newNetconfRequest(yang.ToEntry(mods[slice[1]]), slice[2:], "", requestType, false)
+		} else if requestType == getConf {
+			// getConf supports getting the whole config.
+			ncRequest = newNetconfRequest(nil, []string{}, "", requestType, false)
+		}
 	default:
 		panic("Bad request type")
 	}
