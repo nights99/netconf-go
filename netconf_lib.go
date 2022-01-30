@@ -219,7 +219,8 @@ func listYang(path string) []string {
 					intfs := GetInterfaces(globalSession)
 					println(intfs)
 					for _, intf := range intfs {
-						names = append(names, keys[0]+"="+intf)
+						// names = append(names, keys[0]+"="+intf)
+						names = append(names, strings.Join(tokens[1:], " ")+" "+keys[0]+"="+intf)
 					}
 				} else if entry.Dir[keys[0]].Type.Name == "Node-id" {
 					nodes := GetNodes(globalSession)
@@ -241,14 +242,19 @@ func listYang(path string) []string {
 			}
 		} else if entry != nil && entry.Kind == yang.DirectoryEntry {
 			for s := range entry.Dir {
-				names = append(names, s)
+				if !didAugment {
+					// names = append(names, s)
+				} else {
+					names = append(names, strings.Join(tokens[1:], " ")+" "+s)
+				}
 			}
 		}
 		for _, s := range mod.Augment {
 			log.Debugln("Mod augment: ", s.Name)
 			if !didAugment {
 				// This isn't quite right.
-				names = append(names, strings.Join(tokens[1:], " ")+" "+s.Name)
+				// names = append(names, strings.Join(tokens[1:], " ")+" "+s.Name)
+				names = append(names, s.Name)
 			}
 		}
 

@@ -40,9 +40,26 @@ func wordCompleter(line string, pos2 int) (head string, completions []string, ta
 
 		cs := make([]string, len(yangCompletions))
 		var pos int = 0
+		var found_augment bool = false
 		for _, e := range yangCompletions {
 			// fmt.Printf("Comparing '%s' and '%s'\n", e[strings.LastIndex(e, " ")+1:], tokens[len(tokens)-1])
 			// if strings.HasPrefix(e[strings.LastIndex(e, " ")+1:], tokens[len(tokens)-1]) || strings.HasSuffix(line, " ") {
+			if strings.Contains(e, "@") {
+				// Needs quite different handling - need to return a start containing these tokens.
+				if len(yangCompletions) == 1 {
+					var prefix = strings.Join(append([]string{tokens[0] + " "}, yangCompletions[0:len(yangCompletions)-1]...), " ")
+					return prefix, []string{yangCompletions[len(yangCompletions)-1]}, ""
+				} else {
+					// @@@
+					panic("Not yet impl")
+				}
+			}
+			if strings.Contains(e, " ") {
+				found_augment = true
+				tokens2 := strings.Split(e, " ")
+				cs[pos] = tokens2[len(tokens2)-1]
+				pos++
+			}
 			if strings.HasPrefix(e, tokens[len(tokens)-1]) || strings.HasSuffix(line, " ") {
 				// println("Found " + e)
 				// cs[pos] = tokens[0] + " " + e
@@ -59,7 +76,13 @@ func wordCompleter(line string, pos2 int) (head string, completions []string, ta
 		if strings.HasSuffix(line, " ") {
 			return strings.Join(tokens, " ") + " ", cs[:pos], ""
 		} else {
-			return strings.Join(tokens[:len(tokens)-1], " ") + " ", cs[:pos], ""
+			if found_augment {
+				tokens2 := strings.Split(yangCompletions[0], " ")
+				var prefix = strings.Join(append([]string{tokens[0] + " "}, tokens2[0:len(yangCompletions)-1]...), " ")
+				return prefix + " ", cs[:pos], ""
+			} else {
+				return strings.Join(tokens[:len(tokens)-1], " ") + " ", cs[:pos], ""
+			}
 		}
 	} else {
 		cs := []string{"get-oper", "get-conf", "delete", "set", "validate", "commit", "rpc"}
