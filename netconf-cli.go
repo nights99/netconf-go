@@ -51,16 +51,18 @@ func wordCompleter(line string, pos2 int) (head string, completions []string, ta
 					return prefix, []string{yangCompletions[len(yangCompletions)-1]}, ""
 				} else {
 					// @@@
-					panic("Not yet impl")
+					// panic("Not yet impl")
+					// Drop-thru?
 				}
 			}
 			if strings.Contains(e, " ") {
 				found_augment = true
 				tokens2 := strings.Split(e, " ")
-				cs[pos] = tokens2[len(tokens2)-1]
-				pos++
-			}
-			if strings.HasPrefix(e, tokens[len(tokens)-1]) || strings.HasSuffix(line, " ") {
+				if strings.HasPrefix(tokens2[len(tokens2)-1], tokens[len(tokens)-1]) || strings.HasSuffix(line, " ") || strings.HasPrefix(tokens[len(tokens)-1], "/") {
+					cs[pos] = tokens2[len(tokens2)-1]
+					pos++
+				}
+			} else if strings.HasPrefix(e, tokens[len(tokens)-1]) || strings.HasSuffix(line, " ") {
 				// println("Found " + e)
 				// cs[pos] = tokens[0] + " " + e
 				cs[pos] = e
@@ -78,7 +80,7 @@ func wordCompleter(line string, pos2 int) (head string, completions []string, ta
 		} else {
 			if found_augment {
 				tokens2 := strings.Split(yangCompletions[0], " ")
-				var prefix = strings.Join(append([]string{tokens[0] + " "}, tokens2[0:len(yangCompletions)-1]...), " ")
+				var prefix = strings.Join(append([]string{tokens[0]}, tokens2[0:len(tokens2)-1]...), " ")
 				return prefix + " ", cs[:pos], ""
 			} else {
 				return strings.Join(tokens[:len(tokens)-1], " ") + " ", cs[:pos], ""
@@ -313,6 +315,7 @@ func main() {
 				op = getOper
 			case "rpc":
 				// TODO - rpc arg completion not working?
+				// TODO - also, think only rpcs without data currently work?
 				op = rpcOp
 			case "get-conf":
 				op = getConf

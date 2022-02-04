@@ -200,6 +200,7 @@ func listYang(path string) []string {
 					// @@@ Should check prefix matches?
 					if !strings.Contains(tokens[len(tokens)-1], "@") {
 						tokens[len(tokens)-1] = currentPrefix + "@" + tokens[len(tokens)-1]
+						didAugment = true
 					}
 				}
 
@@ -243,7 +244,7 @@ func listYang(path string) []string {
 		} else if entry != nil && entry.Kind == yang.DirectoryEntry {
 			for s := range entry.Dir {
 				if !didAugment {
-					// names = append(names, s)
+					names = append(names, s)
 				} else {
 					names = append(names, strings.Join(tokens[1:], " ")+" "+s)
 				}
