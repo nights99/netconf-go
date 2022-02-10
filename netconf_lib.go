@@ -206,6 +206,12 @@ func listYang(path string) []string {
 
 			}
 		}
+		var prefix string
+		if !didAugment {
+			prefix = ""
+		} else {
+			prefix = strings.Join(tokens[1:], " ") + " "
+		}
 		if entry.IsList() {
 			// TODO Need to support multiple keys properly here
 			keys := strings.Split(entry.Key, " ")
@@ -220,8 +226,7 @@ func listYang(path string) []string {
 					intfs := GetInterfaces(globalSession)
 					println(intfs)
 					for _, intf := range intfs {
-						// names = append(names, keys[0]+"="+intf)
-						names = append(names, strings.Join(tokens[1:], " ")+" "+keys[0]+"="+intf)
+						names = append(names, prefix+keys[0]+"="+intf)
 					}
 				} else if entry.Dir[keys[0]].Type.Name == "Node-id" {
 					nodes := GetNodes(globalSession)
@@ -243,11 +248,7 @@ func listYang(path string) []string {
 			}
 		} else if entry != nil && entry.Kind == yang.DirectoryEntry {
 			for s := range entry.Dir {
-				if !didAugment {
-					names = append(names, s)
-				} else {
-					names = append(names, strings.Join(tokens[1:], " ")+" "+s)
-				}
+				names = append(names, prefix+s)
 			}
 		}
 		for _, s := range mod.Augment {
