@@ -43,16 +43,11 @@ func wordCompleter(line string, pos2 int) (head string, completions []string, ta
 		var found_augment bool = false
 		for _, e := range yangCompletions {
 			// fmt.Printf("Comparing '%s' and '%s'\n", e[strings.LastIndex(e, " ")+1:], tokens[len(tokens)-1])
-			// if strings.HasPrefix(e[strings.LastIndex(e, " ")+1:], tokens[len(tokens)-1]) || strings.HasSuffix(line, " ") {
 			if strings.Contains(e, "@") {
 				// Needs quite different handling - need to return a start containing these tokens.
 				if len(yangCompletions) == 1 {
 					var prefix = strings.Join(append([]string{tokens[0] + " "}, yangCompletions[0:len(yangCompletions)-1]...), " ")
 					return prefix, []string{yangCompletions[len(yangCompletions)-1]}, ""
-				} else {
-					// @@@
-					// panic("Not yet impl")
-					// Drop-thru?
 				}
 			}
 			if strings.Contains(e, " ") {
@@ -63,15 +58,13 @@ func wordCompleter(line string, pos2 int) (head string, completions []string, ta
 					pos++
 				}
 			} else if strings.HasPrefix(e, tokens[len(tokens)-1]) || strings.HasSuffix(line, " ") {
-				// println("Found " + e)
-				// cs[pos] = tokens[0] + " " + e
 				cs[pos] = e
 				pos++
 			}
 		}
 		// cs = []string{longestcommon.Prefix(cs[:pos])}
 		// fmt.Printf("Found %v\n", cs)
-		// TODO Should we add a space on the end if we've found a completion?
+		// Add a space on the end if we've found a completion
 		if len(cs[:pos]) == 1 {
 			cs[0] += " "
 		}
