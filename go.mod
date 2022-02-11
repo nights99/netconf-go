@@ -75,4 +75,6 @@ replace github.com/Juniper/go-netconf => github.com/nights99/go-netconf v0.1.2-0
 // replace github.com/openconfig/goyang => github.com/nights99/goyang v0.2.5-0.20210118142943-720a812d72ab
 
 // replace github.com/openconfig/goyang => ./goyang/
-replace github.com/openconfig/goyang => ./src/github.com/openconfig/goyang/
+// replace github.com/openconfig/goyang => ./src/github.com/openconfig/goyang/
+
+// replace github.com/peterh/liner => ./src/github.com/peterh/liner
