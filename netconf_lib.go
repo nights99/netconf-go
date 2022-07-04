@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/Juniper/go-netconf/netconf"
 	"github.com/openconfig/goyang/pkg/yang"
@@ -530,6 +531,8 @@ func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
 	return mod
 }
 func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int) (string, string) {
+	defer timeTrack(time.Now(), "Request")
+
 	slice := strings.Split(requestLine, " ")
 
 	// Create a request structure with module, path array, and string value.
@@ -652,4 +655,9 @@ func getSchemaList(s *netconf.Session) []string {
 
 	sort.Strings(schStrings)
 	return schStrings
+}
+
+func timeTrack(start time.Time, name string) {
+	elapsed := time.Since(start)
+	log.Printf("%s took %s", name, elapsed)
 }
