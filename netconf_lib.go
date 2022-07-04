@@ -23,6 +23,11 @@ const (
 	rpcOp    = 5
 )
 
+const (
+	newTokens   = 0
+	replaceLast = 1
+)
+
 type yangReply struct {
 	XMLName xml.Name `xml:"data"`
 	Rest    string   `xml:",chardata"`
@@ -67,9 +72,11 @@ var mods = map[string]*yang.Module{}
 
 var globalSession *netconf.Session
 
-func listYang(path string) []string {
+func listYang(path string) ([]string, int) {
 	var didAugment bool = false
 	var currentPrefix string
+	var returnType = newTokens
+
 	log.Debugf("listYang called on path: %s", path)
 	// yang.ParseOptions.IgnoreSubmoduleCircularDependencies = true
 	names := make([]string, 0)
@@ -86,7 +93,7 @@ func listYang(path string) []string {
 		// We have a module name; check for partial or incorrect
 		if i := sort.SearchStrings(modNames, tokens[1]); i == len(modNames) || modNames[i] != tokens[1] {
 			log.Debugf("didn't find %s in %v, returning all, 1", tokens[1], len(modNames))
-			return modNames
+			return modNames, returnType
 		}
 		if mods[tokens[1]] == nil {
 			mods[tokens[1]] = getYangModule(globalSession, tokens[1])
@@ -94,7 +101,7 @@ func listYang(path string) []string {
 		mod := mods[tokens[1]]
 		if mod == nil {
 			log.Debugf("didn't find %s in %v, returning all, 2", tokens[1], len(mods))
-			return modNames
+			return modNames, returnType
 		}
 
 		entry := yang.ToEntry(mod)
@@ -113,6 +120,9 @@ func listYang(path string) []string {
 					}
 
 					entry = entry.Dir[e]
+					if entry == nil && prevEntry.RPC != nil {
+						entry = prevEntry.RPC.Input.Dir[e]
+					}
 					if entry == nil {
 						log.Debugf("Couldn't find %v in %v", e, prevEntry.Dir)
 						entry = prevEntry
@@ -245,12 +255,18 @@ func listYang(path string) []string {
 			}
 		} else if entry != nil && entry.RPC != nil {
 			for s := range entry.RPC.Input.Dir {
-				names = append(names, strings.Join(tokens[1:], " ")+" "+s)
+				names = append(names, strings.Join(tokens[1:], " ")+" "+s+"=")
 			}
 		} else if entry != nil && entry.Kind == yang.DirectoryEntry {
 			for s := range entry.Dir {
 				names = append(names, prefix+s)
 			}
+		} else if entry != nil && entry.Parent.Kind == yang.InputEntry {
+			// This is a leaf specifying the input for the RPC, prompt the user
+			// for input
+			fmt.Printf("Enter RPC input: %s\n", entry.Description)
+			names = append(names, entry.Name+"=")
+			returnType = replaceLast
 		}
 		for _, s := range mod.Augment {
 			log.Debugln("Mod augment: ", s.Name)
@@ -287,7 +303,7 @@ func listYang(path string) []string {
 		log.Debug("Returning all modules")
 		names = modNames
 	}
-	return names
+	return names, returnType
 }
 
 func newNetconfRequest(netconfEntry *yang.Entry, Path []string, value string, requestType int, delete bool) *netconfRequest {

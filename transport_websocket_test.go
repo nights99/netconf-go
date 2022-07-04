@@ -24,7 +24,7 @@ func TestWS(t *testing.T) {
 	fmt.Printf("Modname: %v\n", modNames[:3])
 
 	globalSession = s
-	entries := listYang("get-oper Cisco-IOS-XR-shellutil-oper")
+	entries, _ := listYang("get-oper Cisco-IOS-XR-shellutil-oper")
 	fmt.Printf("listYang returned %v\n", entries)
 
 	slice := strings.Split("Cisco-IOS-XR-shellutil-oper", " ")

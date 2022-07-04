@@ -35,7 +35,7 @@ func wordCompleter(line string, pos2 int) (head string, completions []string, ta
 	log.Debugf("tokens: %d, %v", len(tokens), tokens)
 
 	if len(tokens) >= 2 || strings.HasSuffix(line, " ") {
-		yangCompletions := listYang(line)
+		yangCompletions, returnType := listYang(line)
 		// fmt.Printf("Completions %v\n", yangCompletions)
 
 		cs := make([]string, len(yangCompletions))
@@ -65,10 +65,13 @@ func wordCompleter(line string, pos2 int) (head string, completions []string, ta
 		// cs = []string{longestcommon.Prefix(cs[:pos])}
 		// fmt.Printf("Found %v\n", cs)
 		// Add a space on the end if we've found a completion
-		if len(cs[:pos]) == 1 {
+		if len(cs[:pos]) == 1 && returnType != replaceLast {
 			cs[0] += " "
 		}
-		if strings.HasSuffix(line, " ") {
+		if returnType == replaceLast {
+			tokens = tokens[:len(tokens)-1]
+		}
+		if strings.HasSuffix(line, " ") || returnType == replaceLast {
 			return strings.Join(tokens, " ") + " ", cs[:pos], ""
 		} else {
 			if found_augment {
