@@ -372,7 +372,9 @@ func (nc *netconfRequest) MarshalMethod() string {
 		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "get-config"}})
 		emitNestedXML(enc, []netconfPathElement{
 			{name: "source", value: nil},
+			// TODO - add an option to choose between views.
 			{name: "running", value: nil}},
+			// {name: "running-inheritance", value: nil}},
 			"", nc.reqType)
 		if nc.ncEntry != nil {
 			enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "filter"}})
