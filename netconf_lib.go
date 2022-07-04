@@ -80,11 +80,6 @@ func listYang(path string) ([]string, int) {
 	log.Debugf("listYang called on path: %s", path)
 	// yang.ParseOptions.IgnoreSubmoduleCircularDependencies = true
 	names := make([]string, 0)
-	/*files, _ := ioutil.ReadDir(path)
-	  for _, f := range files {
-	      names = append(names, f.Name())
-	  }
-	  return names*/
 
 	tokens := strings.Fields(path)
 	log.Debugf("tokens: %d, %v", len(tokens), tokens)
@@ -225,14 +220,18 @@ func listYang(path string) ([]string, int) {
 		}
 		if entry.IsList() {
 			// TODO Need to support multiple keys properly here
-			keys := strings.Split(entry.Key, " ")
-			fmt.Printf("Enter list key (%s, %s, %v)\n", keys[0], entry.Dir[keys[0]].Description, entry.Dir[keys[0]].Type.Name)
+			var keys []string
+			if entry.Key != "" {
+				keys := strings.Split(entry.Key, " ")
+				fmt.Printf("Enter list key (%s, %s, %v)\n", keys[0], entry.Dir[keys[0]].Description, entry.Dir[keys[0]].Type.Name)
+			}
 			// fmt.Printf("list key tokens: %v\n", tokens)
 			e := tokens[len(tokens)-1]
 			i := strings.Index(e, "=")
 			// fmt.Printf("Compare %v to %v, %d, %d\n", e, entry.Key, i, len(e))
 			// if i == -1 || i == len(e)-1 {
-			if i == -1 || (!deletedLastToken && !strings.HasSuffix(path, " ")) {
+			if (i == -1 || (!deletedLastToken && !strings.HasSuffix(path, " "))) &&
+				entry.Key != "" {
 				if entry.Dir[keys[0]].Type.Name == "Interface-name" {
 					intfs := GetInterfaces(globalSession)
 					println(intfs)

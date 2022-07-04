@@ -312,8 +312,6 @@ func main() {
 			case "get-oper":
 				op = getOper
 			case "rpc":
-				// TODO - rpc arg completion not working?
-				// TODO - also, think only rpcs without data currently work?
 				op = rpcOp
 			case "get-conf":
 				op = getConf
