@@ -35,7 +35,7 @@ func wordCompleter(line string, pos2 int) (head string, completions []string, ta
 	log.Debugf("tokens: %d, %v", len(tokens), tokens)
 
 	if len(tokens) >= 2 || strings.HasSuffix(line, " ") {
-		yangCompletions := listYang(line)
+		yangCompletions, returnType := listYang(line)
 		// fmt.Printf("Completions %v\n", yangCompletions)
 
 		cs := make([]string, len(yangCompletions))
@@ -65,10 +65,13 @@ func wordCompleter(line string, pos2 int) (head string, completions []string, ta
 		// cs = []string{longestcommon.Prefix(cs[:pos])}
 		// fmt.Printf("Found %v\n", cs)
 		// Add a space on the end if we've found a completion
-		if len(cs[:pos]) == 1 {
+		if len(cs[:pos]) == 1 && returnType != replaceLast {
 			cs[0] += " "
 		}
-		if strings.HasSuffix(line, " ") {
+		if returnType == replaceLast {
+			tokens = tokens[:len(tokens)-1]
+		}
+		if strings.HasSuffix(line, " ") || returnType == replaceLast {
 			return strings.Join(tokens, " ") + " ", cs[:pos], ""
 		} else {
 			if found_augment {
@@ -102,6 +105,7 @@ func main() {
 	var port1 int
 	var addr1, logLevel1 string
 	var addr, logLevel *string
+	var telnet *bool
 	if flag.CommandLine.Lookup("port") != nil {
 		// port = flag.Getter(flag.CommandLine.Lookup("port").Value).Get()
 
@@ -116,6 +120,7 @@ func main() {
 		// Parse args
 		port = flag.Int("port", 10555, "Port number to connect to")
 		addr = flag.String("address", "localhost", "Address or host to connect to")
+		telnet = flag.Bool("t", false, "Use telnet to connect")
 		logLevel = flag.String("debug", log.InfoLevel.String(), "debug level")
 		flag.Parse()
 	}
@@ -124,15 +129,15 @@ func main() {
 	log.SetLevel(l2)
 
 	// Connect to the node
-	//s, err := netconf.DialTelnet("localhost:"+strconv.Itoa(*port), "lab", "lab", nil)
-
-	//sshConfig, err := netconf.SSHConfigPubKeyFile("root", "/users/jnightin/.ssh/id_moonshine", "")
-	// if err != nil {
-	//     panic(err)
-	// }
-	sshConfig := netconf.SSHConfigPassword("cisco", "cisco123")
-	sshConfig.HostKeyCallback = ssh.InsecureIgnoreHostKey()
-	s, err := netconf.DialSSH(*addr+":"+strconv.Itoa(*port), sshConfig)
+	var s *netconf.Session
+	var err error
+	if *telnet {
+		s, err = netconf.DialTelnet(*addr+":"+strconv.Itoa(*port), "lab", "lab", nil)
+	} else {
+		sshConfig := netconf.SSHConfigPassword("cisco", "cisco123")
+		sshConfig.HostKeyCallback = ssh.InsecureIgnoreHostKey()
+		s, err = netconf.DialSSH(*addr+":"+strconv.Itoa(*port), sshConfig)
+	}
 
 	if err != nil {
 		panic(err)
@@ -307,8 +312,6 @@ func main() {
 			case "get-oper":
 				op = getOper
 			case "rpc":
-				// TODO - rpc arg completion not working?
-				// TODO - also, think only rpcs without data currently work?
 				op = rpcOp
 			case "get-conf":
 				op = getConf

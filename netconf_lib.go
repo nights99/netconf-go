@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/Juniper/go-netconf/netconf"
 	"github.com/openconfig/goyang/pkg/yang"
@@ -20,6 +21,11 @@ const (
 	getConf  = 2
 	getOper  = 3
 	rpcOp    = 5
+)
+
+const (
+	newTokens   = 0
+	replaceLast = 1
 )
 
 type yangReply struct {
@@ -66,17 +72,14 @@ var mods = map[string]*yang.Module{}
 
 var globalSession *netconf.Session
 
-func listYang(path string) []string {
+func listYang(path string) ([]string, int) {
 	var didAugment bool = false
 	var currentPrefix string
+	var returnType = newTokens
+
 	log.Debugf("listYang called on path: %s", path)
 	// yang.ParseOptions.IgnoreSubmoduleCircularDependencies = true
 	names := make([]string, 0)
-	/*files, _ := ioutil.ReadDir(path)
-	  for _, f := range files {
-	      names = append(names, f.Name())
-	  }
-	  return names*/
 
 	tokens := strings.Fields(path)
 	log.Debugf("tokens: %d, %v", len(tokens), tokens)
@@ -85,7 +88,7 @@ func listYang(path string) []string {
 		// We have a module name; check for partial or incorrect
 		if i := sort.SearchStrings(modNames, tokens[1]); i == len(modNames) || modNames[i] != tokens[1] {
 			log.Debugf("didn't find %s in %v, returning all, 1", tokens[1], len(modNames))
-			return modNames
+			return modNames, returnType
 		}
 		if mods[tokens[1]] == nil {
 			mods[tokens[1]] = getYangModule(globalSession, tokens[1])
@@ -93,7 +96,7 @@ func listYang(path string) []string {
 		mod := mods[tokens[1]]
 		if mod == nil {
 			log.Debugf("didn't find %s in %v, returning all, 2", tokens[1], len(mods))
-			return modNames
+			return modNames, returnType
 		}
 
 		entry := yang.ToEntry(mod)
@@ -112,6 +115,9 @@ func listYang(path string) []string {
 					}
 
 					entry = entry.Dir[e]
+					if entry == nil && prevEntry.RPC != nil {
+						entry = prevEntry.RPC.Input.Dir[e]
+					}
 					if entry == nil {
 						log.Debugf("Couldn't find %v in %v", e, prevEntry.Dir)
 						entry = prevEntry
@@ -214,14 +220,18 @@ func listYang(path string) []string {
 		}
 		if entry.IsList() {
 			// TODO Need to support multiple keys properly here
-			keys := strings.Split(entry.Key, " ")
-			fmt.Printf("Enter list key (%s, %s, %v)\n", keys[0], entry.Dir[keys[0]].Description, entry.Dir[keys[0]].Type.Name)
+			var keys []string
+			if entry.Key != "" {
+				keys := strings.Split(entry.Key, " ")
+				fmt.Printf("Enter list key (%s, %s, %v)\n", keys[0], entry.Dir[keys[0]].Description, entry.Dir[keys[0]].Type.Name)
+			}
 			// fmt.Printf("list key tokens: %v\n", tokens)
 			e := tokens[len(tokens)-1]
 			i := strings.Index(e, "=")
 			// fmt.Printf("Compare %v to %v, %d, %d\n", e, entry.Key, i, len(e))
 			// if i == -1 || i == len(e)-1 {
-			if i == -1 || (!deletedLastToken && !strings.HasSuffix(path, " ")) {
+			if (i == -1 || (!deletedLastToken && !strings.HasSuffix(path, " "))) &&
+				entry.Key != "" {
 				if entry.Dir[keys[0]].Type.Name == "Interface-name" {
 					intfs := GetInterfaces(globalSession)
 					println(intfs)
@@ -244,12 +254,18 @@ func listYang(path string) []string {
 			}
 		} else if entry != nil && entry.RPC != nil {
 			for s := range entry.RPC.Input.Dir {
-				names = append(names, strings.Join(tokens[1:], " ")+" "+s)
+				names = append(names, strings.Join(tokens[1:], " ")+" "+s+"=")
 			}
 		} else if entry != nil && entry.Kind == yang.DirectoryEntry {
 			for s := range entry.Dir {
 				names = append(names, prefix+s)
 			}
+		} else if entry != nil && entry.Parent.Kind == yang.InputEntry {
+			// This is a leaf specifying the input for the RPC, prompt the user
+			// for input
+			fmt.Printf("Enter RPC input: %s\n", entry.Description)
+			names = append(names, entry.Name+"=")
+			returnType = replaceLast
 		}
 		for _, s := range mod.Augment {
 			log.Debugln("Mod augment: ", s.Name)
@@ -286,7 +302,7 @@ func listYang(path string) []string {
 		log.Debug("Returning all modules")
 		names = modNames
 	}
-	return names
+	return names, returnType
 }
 
 func newNetconfRequest(netconfEntry *yang.Entry, Path []string, value string, requestType int, delete bool) *netconfRequest {
@@ -372,7 +388,9 @@ func (nc *netconfRequest) MarshalMethod() string {
 		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "get-config"}})
 		emitNestedXML(enc, []netconfPathElement{
 			{name: "source", value: nil},
+			// TODO - add an option to choose between views.
 			{name: "running", value: nil}},
+			// {name: "running-inheritance", value: nil}},
 			"", nc.reqType)
 		if nc.ncEntry != nil {
 			enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "filter"}})
@@ -528,6 +546,8 @@ func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
 	return mod
 }
 func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int) (string, string) {
+	defer timeTrack(time.Now(), "Request")
+
 	slice := strings.Split(requestLine, " ")
 
 	// Create a request structure with module, path array, and string value.
@@ -650,4 +670,9 @@ func getSchemaList(s *netconf.Session) []string {
 
 	sort.Strings(schStrings)
 	return schStrings
+}
+
+func timeTrack(start time.Time, name string) {
+	elapsed := time.Since(start)
+	log.Printf("%s took %s", name, elapsed)
 }

@@ -33,7 +33,9 @@ func GetInterfaces(s *netconf.Session) []string {
 		return intfCache
 	}
 	// TODO make common with set
-	requestLine := "get-oper openconfig-interfaces interfaces interface"
+	// TODO make request more specific - just get names
+	// requestLine := "get-oper openconfig-interfaces interfaces interface"
+	requestLine := "get-oper openconfig-interfaces interfaces interface name= state name"
 	slice := strings.Split(requestLine, " ")
 	log.Debug("Set line:", slice[1:])
 

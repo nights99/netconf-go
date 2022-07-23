@@ -51,7 +51,7 @@ func doGetEntries(slice []string) {
 	if modNames == nil {
 		modNames = getSchemaList(globalSession)
 	}
-	entries := listYang(strings.Join(slice, " "))
+	entries, _ := listYang(strings.Join(slice, " "))
 
 	webEntries := make([]string, 0)
 	webEntries = append(webEntries, "GetEntries")
