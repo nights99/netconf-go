@@ -41,14 +41,12 @@ require (
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
 
-// Just do "go get github.com/nights99/go-netconf@chunk_read" and it fills this in?
-// replace github.com/openconfig/goyang => github.com/nights99/goyang v0.2.5-0.20210118142943-720a812d72ab
-
+// go mod edit -replace github.com/openconfig/goyang=github.com/nights99/goyang@dynamic_read
 // replace github.com/openconfig/goyang => ./goyang/
 // replace github.com/openconfig/goyang => ./src/github.com/openconfig/goyang/
+replace github.com/openconfig/goyang => github.com/nights99/goyang v0.2.5-0.20220723135300-f046d3f17ec9
 
 // replace github.com/peterh/liner => ./src/github.com/peterh/liner
-replace github.com/openconfig/goyang => ./goyang/
 
 // go mod edit -replace github.com/Juniper/go-netconf=github.com/nights99/go-netconf@master
 // replace github.com/Juniper/go-netconf => ./src/github.com/Juniper/go-netconf/
