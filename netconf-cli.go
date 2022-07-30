@@ -132,7 +132,7 @@ func main() {
 	var s *netconf.Session
 	var err error
 	if *telnet {
-		s, err = netconf.DialTelnet(*addr+":"+strconv.Itoa(*port), "lab", "lab", nil)
+		s, err = DialTelnet(*addr+":"+strconv.Itoa(*port), "lab", "lab", nil)
 	} else {
 		sshConfig := netconf.SSHConfigPassword("cisco", "cisco123")
 		sshConfig.HostKeyCallback = ssh.InsecureIgnoreHostKey()

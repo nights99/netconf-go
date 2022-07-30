@@ -18,6 +18,8 @@ require (
 	nhooyr.io/websocket v1.8.7
 )
 
+require github.com/ziutek/telnet v0.0.0-20180329124119-c3b780dc415b
+
 require (
 	github.com/chzyer/logex v1.2.0 // indirect
 	github.com/chzyer/test v0.0.0-20210722231415-061457976a23 // indirect
@@ -43,6 +45,7 @@ require (
 
 // go mod edit -replace github.com/openconfig/goyang=github.com/nights99/goyang@dynamic_read
 // replace github.com/openconfig/goyang => ./goyang/
+
 // replace github.com/openconfig/goyang => ./src/github.com/openconfig/goyang/
 replace github.com/openconfig/goyang => github.com/nights99/goyang v0.2.5-0.20220723135300-f046d3f17ec9
 
@@ -51,4 +54,5 @@ replace github.com/openconfig/goyang => github.com/nights99/goyang v0.2.5-0.2022
 // go mod edit -replace github.com/Juniper/go-netconf=github.com/nights99/go-netconf@master
 // replace github.com/Juniper/go-netconf => ./src/github.com/Juniper/go-netconf/
 // replace github.com/Juniper/go-netconf => ./go-netconf/
+
 replace github.com/Juniper/go-netconf => github.com/nights99/go-netconf v0.1.2-0.20220723134019-7f4f80450f34
