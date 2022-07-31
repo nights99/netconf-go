@@ -4,7 +4,7 @@ import (
 	"encoding/xml"
 	"strings"
 
-	"github.com/Juniper/go-netconf/netconf"
+	"github.com/nemith/go-netconf/v2"
 	log "github.com/sirupsen/logrus"
 )
 

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Juniper/go-netconf/netconf"
+	"github.com/nemith/go-netconf/v2/transport"
 	"github.com/ziutek/telnet"
 )
 
@@ -25,7 +25,7 @@ type VendorIOProc interface {
 // TransportTelnet is used to define what makes up a Telnet Transport layer for
 // NETCONF
 type TransportTelnet struct {
-	netconf.TransportBasicIO
+	*transport.FramedTransport
 	telnetConn *telnet.Conn
 }
 
@@ -43,19 +43,25 @@ func (t *TransportTelnet) Dial(target string, username string, password string, 
 	tn.SetUnixWriteMode(true)
 
 	t.telnetConn = tn
-	t.ReadWriteCloser = tn
+	// t.ReadWriteCloser = tn
+	t.FramedTransport = transport.NewFramedTransport(tn, tn)
 
-	vendor.Login(t, username, password)
-	vendor.StartNetconf(t)
+	// vendor.Login(t, username, password)
+	// vendor.StartNetconf(t)
 
 	return nil
 }
 
+func (t *TransportTelnet) Close() error {
+	return t.telnetConn.Close()
+}
+
 // DialTelnet dials and returns the usable telnet session.
-func DialTelnet(target string, username string, password string, vendor VendorIOProc) (*netconf.Session, error) {
-	var t TransportTelnet
+func DialTelnet(target string, username string, password string, vendor VendorIOProc) (transport.Transport, error) {
+	var t *TransportTelnet
+	t = &TransportTelnet{}
 	if err := t.Dial(target, username, password, vendor); err != nil {
 		return nil, err
 	}
-	return netconf.NewSession(&t), nil
+	return t, nil
 }

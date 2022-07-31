@@ -4,6 +4,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -13,8 +14,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Juniper/go-netconf/netconf"
 	"github.com/chzyer/readline"
+	netconf "github.com/nemith/go-netconf/v2"
+	ncssh "github.com/nemith/go-netconf/v2/transport/ssh"
 	"github.com/openconfig/goyang/pkg/yang"
 	"github.com/peterh/liner"
 	log "github.com/sirupsen/logrus"
@@ -132,11 +134,34 @@ func main() {
 	var s *netconf.Session
 	var err error
 	if *telnet {
-		s, err = DialTelnet(*addr+":"+strconv.Itoa(*port), "lab", "lab", nil)
+		transport, err := DialTelnet(*addr+":"+strconv.Itoa(*port), "lab", "lab", nil)
+		if err != nil {
+			panic(err)
+		}
+		s, err = netconf.Open(transport)
+		if err != nil {
+			panic(err)
+		}
 	} else {
-		sshConfig := netconf.SSHConfigPassword("cisco", "cisco123")
-		sshConfig.HostKeyCallback = ssh.InsecureIgnoreHostKey()
-		s, err = netconf.DialSSH(*addr+":"+strconv.Itoa(*port), sshConfig)
+		sshConfig := &ssh.ClientConfig{
+			User: "cisco",
+			Auth: []ssh.AuthMethod{
+				ssh.Password("cisco123"),
+			},
+			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		}
+		// s, err = netconf.DialSSH(*addr+":"+strconv.Itoa(*port), sshConfig)
+
+		transport, err := ncssh.Dial(context.Background(), "tcp", *addr+":"+strconv.Itoa(*port), sshConfig)
+		if err != nil {
+			panic(err)
+		}
+		defer transport.Close()
+
+		s, err = netconf.Open(transport)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	if err != nil {

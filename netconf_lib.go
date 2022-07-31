@@ -2,15 +2,15 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/xml"
 	"fmt"
 	"os"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/Juniper/go-netconf/netconf"
+	netconf "github.com/nemith/go-netconf/v2"
 	"github.com/openconfig/goyang/pkg/yang"
 	log "github.com/sirupsen/logrus"
 )
@@ -367,10 +367,7 @@ func emitNestedXML(enc *xml.Encoder, paths []netconfPathElement, value string, r
 	}
 }
 
-func (nc *netconfRequest) MarshalMethod() string {
-	var buf bytes.Buffer
-
-	enc := xml.NewEncoder(&buf)
+func (nc *netconfRequest) MarshalXML(enc *xml.Encoder, start xml.StartElement) error {
 
 	switch nc.reqType {
 	case commit:
@@ -446,7 +443,7 @@ func (nc *netconfRequest) MarshalMethod() string {
 
 	enc.Flush()
 
-	return buf.String()
+	return nil
 }
 
 func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
@@ -454,22 +451,23 @@ func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
 	 * Get the yang module from XR and read it into the map
 	 */
 	log.Debug("Getting: ", yangMod)
-	reply, error := s.Exec(netconf.RawMethod(`<get-schema
+	reply, error := s.Do(context.Background(),
+		&netconf.RPCMsg{Operation: `<get-schema
 		 xmlns="urn:ietf:params:xml:ns:yang:ietf-netconf-monitoring">
 	 <identifier>` +
-		yangMod +
-		`</identifier>
+			yangMod +
+			`</identifier>
 		 </get-schema>
-	 `))
+	 `})
 	if error != nil {
 		fmt.Printf("Request reply error1: %v\n", error)
 		return nil
 	}
 	// log.Debugf("Request reply: %v, error: %v\n", reply.Data, error)
-	re, _ := regexp.Compile("\n#[0-9]+\n")
+	// re, _ := regexp.Compile("\n#[0-9]+\n")
 	// strs := re.FindAllStringSubmatch(reply.Data, 10)
 	// fmt.Printf("%v\n", strs)
-	reply.Data = re.ReplaceAllLiteralString(reply.Data, "")
+	// reply.Data = re.ReplaceAllLiteralString(reply.Data, "")
 	yangReply := yangReply{}
 	_ = xml.Unmarshal([]byte(reply.Data), &yangReply)
 	//fmt.Printf("Request reply: %v, error: %v\n", yangReply, err)
@@ -574,23 +572,23 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 
 	//fmt.Printf("ncRequest: %v\n", ncRequest)
 
-	rpc := netconf.NewRPCMessage([]netconf.RPCMethod{ncRequest})
-	xml2, err := xml.MarshalIndent(rpc, "", "  ")
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-	}
-	log.Debug(string(xml2))
+	rpc := netconf.RPCMsg{Operation: ncRequest}
+	// xml2, err := xml.MarshalIndent(ncRequest, "", "  ")
+	// if err != nil {
+	// 	fmt.Fprintln(os.Stderr, err)
+	// }
+	// log.Debug(string(xml2))
 
-	reply, error := s.Exec(ncRequest)
+	reply, error := s.Do(context.Background(), &rpc)
 
 	//log.Debugf("Request reply: %v, error: %v\n", reply, error)
 	var theString string
 
 	if requestType == commit {
-		reply, error = s.Exec(netconf.RawMethod("<commit></commit>"))
+		reply, error = s.Do(context.Background(), &netconf.RPCMsg{Operation: "<commit></commit>"})
 		log.Debugf("Request reply: %v, error: %v\n", reply, error)
 	} else if requestType == validate {
-		reply, error = s.Exec(netconf.RawMethod("<validate><source><candidate/></source></validate>"))
+		reply, error = s.Do(context.Background(), &netconf.RPCMsg{Operation: "<validate><source><candidate/></source></validate>"})
 		log.Debugf("Request reply: %v, error: %v\n", reply, error)
 	} else if requestType == getConf || requestType == getOper {
 		if error != nil {
@@ -600,7 +598,7 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 		log.Debugf("Request reply: %v, error: %v, data: %v\n", reply, error, reply.Data)
 		// fmt.Printf("Request data: %v\n", reply.Data)
 
-		dec := xml.NewDecoder(strings.NewReader(reply.Data))
+		dec := xml.NewDecoder(bytes.NewReader(reply.Data))
 		var tok xml.Token
 		var lastString string
 		var seenFirstEnd bool
@@ -631,7 +629,7 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 
 	}
 	if reply != nil {
-		return reply.Data, theString
+		return string(reply.Data), theString
 	} else {
 		return error.Error(), ""
 	}
@@ -641,13 +639,13 @@ func getSchemaList(s *netconf.Session) []string {
 	/*
 	 * Get a list of schemas
 	 */
-	reply, error := s.Exec(netconf.RawMethod(`<get>
+	reply, error := s.Do(context.Background(), &netconf.RPCMsg{Operation: `<get>
     <filter type="subtree">
       <netconf-state xmlns="urn:ietf:params:xml:ns:yang:ietf-netconf-monitoring">
         <schemas/>
       </netconf-state>
     </filter>
-    </get>`))
+    </get>`})
 	if error != nil {
 		fmt.Printf("Request reply error2: %v\n", error)
 		// panic(error)

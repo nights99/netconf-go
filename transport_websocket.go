@@ -1,3 +1,5 @@
+//go:build exclude
+
 package main
 
 import (
@@ -10,7 +12,8 @@ import (
 	// "syscall/js"
 	"time"
 
-	"github.com/Juniper/go-netconf/netconf"
+	netconf "github.com/nemith/go-netconf/v2"
+	"github.com/nemith/go-netconf/v2/transport"
 	"nhooyr.io/websocket"
 )
 
@@ -20,7 +23,7 @@ var ctx context.Context
 
 // TransportWebSocket x
 type TransportWebSocket struct {
-	netconf.TransportBasicIO
+	transport.Transport
 	wsConn  *websocket.Conn
 	lastMsg []byte
 	offset  int
