@@ -127,7 +127,13 @@ func listYang(path string) ([]string, int) {
 							i := strings.Index(e, "=")
 							// fmt.Printf("Compare %v to %v, %d, %d\n", e, entry.Key, i, len(e))
 							// @@@ This is horrible, needs fixing, and messes up the web code.
-							if i == -1 || i == len(e)-1 || (e == tokens[len(tokens)-1] && !strings.HasSuffix(path, " ")) {
+							// Doesn't have an equals - assume this is a partial string, ignore it an d return the whole dir
+							//  OR
+							// = is last character of token OR
+							// We're on the last token and we don't have a space - not ready to advance yet - what if we remove this case?
+							if i == -1 ||
+								(i == len(e)-1 && !strings.HasSuffix(path, " ") && e == tokens[len(tokens)-1]) ||
+								(e == tokens[len(tokens)-1] && !strings.HasSuffix(path, " ")) {
 								tokens = tokens[:len(tokens)-1]
 								deletedLastToken = true
 							}
@@ -232,7 +238,8 @@ func listYang(path string) ([]string, int) {
 			// if i == -1 || i == len(e)-1 {
 			if (i == -1 || (!deletedLastToken && !strings.HasSuffix(path, " "))) &&
 				entry.Key != "" {
-				if entry.Dir[keys[0]].Type.Name == "Interface-name" {
+				if entry.Dir[keys[0]].Type.Name == "Interface-name" ||
+					(entry.Name == "interface" && keys[0] == "name") {
 					intfs := GetInterfaces(globalSession)
 					println(intfs)
 					for _, intf := range intfs {
