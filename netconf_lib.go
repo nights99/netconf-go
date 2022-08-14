@@ -222,7 +222,7 @@ func listYang(path string) ([]string, int) {
 			// TODO Need to support multiple keys properly here
 			var keys []string
 			if entry.Key != "" {
-				keys := strings.Split(entry.Key, " ")
+				keys = strings.Split(entry.Key, " ")
 				fmt.Printf("Enter list key (%s, %s, %v)\n", keys[0], entry.Dir[keys[0]].Description, entry.Dir[keys[0]].Type.Name)
 			}
 			// fmt.Printf("list key tokens: %v\n", tokens)
@@ -242,10 +242,10 @@ func listYang(path string) ([]string, int) {
 					nodes := GetNodes(globalSession)
 					println(nodes)
 					for _, node := range nodes {
-						names = append(names, keys[0]+"="+node)
+						names = append(names, prefix+keys[0]+"="+node)
 					}
 				} else {
-					names = append(names, keys[0]+"=")
+					names = append(names, prefix+keys[0]+"=")
 				}
 			} else {
 				for s := range entry.Dir {
