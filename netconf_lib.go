@@ -644,7 +644,6 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 	// TODO Handle bool/presence type items
 	fmt.Println("Data: ", theString)
 
-	// }
 	if reply != nil {
 		return reply.Data, theString
 	} else {
