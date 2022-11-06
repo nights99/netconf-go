@@ -21,6 +21,7 @@ const (
 	getConf  = 2
 	getOper  = 3
 	rpcOp    = 5
+	editConf = 6
 )
 
 const (
@@ -380,9 +381,10 @@ func (nc *netconfRequest) MarshalMethod() string {
 	enc := xml.NewEncoder(&buf)
 
 	switch nc.reqType {
-	case commit:
-		fallthrough
-	case validate:
+	// case commit:
+	// 	fallthrough
+	// case validate:
+	case editConf:
 		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "edit-config"}})
 		emitNestedXML(enc, []netconfPathElement{
 			{name: "target", value: nil},
@@ -428,9 +430,10 @@ func (nc *netconfRequest) MarshalMethod() string {
 		}
 	}
 	switch nc.reqType {
-	case commit:
-		fallthrough
-	case validate:
+	// case commit:
+	// 	fallthrough
+	// case validate:
+	case editConf:
 		err = enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "config", Space: "urn:ietf:params:xml:ns:netconf:base:1.0"}})
 		if err != nil {
 			fmt.Println(err)
@@ -555,6 +558,9 @@ func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
 func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int) (string, string) {
 	defer timeTrack(time.Now(), "Request")
 
+	// @@@ Handle editConf
+	// @@@ Have commit and validate only do that
+
 	slice := strings.Split(requestLine, " ")
 
 	// Create a request structure with module, path array, and string value.
@@ -563,6 +569,8 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 	case commit:
 		fallthrough
 	case validate:
+		// @@@ Do these here, or leave til later?
+	case editConf:
 		if slice[0] == "delete" {
 			ncRequest = newNetconfRequest(yang.ToEntry(mods[slice[1]]), slice[2:], "", requestType, true)
 		} else {
@@ -581,14 +589,18 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 
 	//fmt.Printf("ncRequest: %v\n", ncRequest)
 
-	rpc := netconf.NewRPCMessage([]netconf.RPCMethod{ncRequest})
-	xml2, err := xml.MarshalIndent(rpc, "", "  ")
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-	}
-	log.Debug(string(xml2))
+	var reply *netconf.RPCReply
+	var error error
+	if ncRequest != nil {
+		rpc := netconf.NewRPCMessage([]netconf.RPCMethod{ncRequest})
+		xml2, err := xml.MarshalIndent(rpc, "", "  ")
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		log.Debug(string(xml2))
 
-	reply, error := s.Exec(ncRequest)
+		reply, error = s.Exec(ncRequest)
+	}
 
 	//log.Debugf("Request reply: %v, error: %v\n", reply, error)
 	var theString string
@@ -599,7 +611,7 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 	} else if requestType == validate {
 		reply, error = s.Exec(netconf.RawMethod("<validate><source><candidate/></source></validate>"))
 		log.Debugf("Request reply: %v, error: %v\n", reply, error)
-	} else if requestType == getConf || requestType == getOper {
+	} else if requestType == getConf || requestType == getOper || requestType == editConf {
 		if error != nil {
 			fmt.Printf("Request reply: %v, error: %v\n", reply, error)
 			return "", ""

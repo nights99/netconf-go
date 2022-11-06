@@ -22,6 +22,7 @@ import (
 )
 
 // Array of available Yang modules
+// TODO dubious sharing of global variables with the lib file...
 var modNames []string
 
 var historyFile = filepath.Join(os.TempDir(), ".liner_example_history")
@@ -268,6 +269,8 @@ func main() {
 			if mods[slice[1]] == nil {
 				mods[slice[1]] = getYangModule(s, slice[1])
 			}
+			netconfData, _ := sendNetconfRequest(s, requestLine, editConf)
+			fmt.Printf("Request data: %v\n", netconfData)
 		case strings.HasPrefix(line, "get-conf"):
 			// TODO make common with get-oper/rpc below using fallthrough
 			requestLine = line
@@ -319,8 +322,10 @@ func main() {
 			netconfData, _ := sendNetconfRequest(s, requestLine, op)
 			fmt.Printf("Request data: %v\n", netconfData)
 		case strings.HasPrefix(line, "validate"):
+			requestLine = line
 			sendNetconfRequest(s, requestLine, validate)
 		case strings.HasPrefix(line, "commit"):
+			requestLine = line
 			sendNetconfRequest(s, requestLine, commit)
 		default:
 		}

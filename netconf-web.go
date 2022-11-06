@@ -1,5 +1,5 @@
-//go:build wasm
-// +build wasm
+//go:build js && wasm
+// +build js,wasm
 
 // GOOS=js GOARCH=wasm go build -o main.wasm
 // ~/go/bin/goexec 'http.ListenAndServe(`:8080`, http.FileServer(http.Dir(`.`)))'
