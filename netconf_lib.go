@@ -381,9 +381,12 @@ func (nc *netconfRequest) MarshalMethod() string {
 	enc := xml.NewEncoder(&buf)
 
 	switch nc.reqType {
-	// case commit:
-	// 	fallthrough
-	// case validate:
+	case commit:
+		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "commit"}})
+	case validate:
+		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "validate"}})
+		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "source"}})
+		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "candidate"}})
 	case editConf:
 		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "edit-config"}})
 		emitNestedXML(enc, []netconfPathElement{
@@ -430,9 +433,12 @@ func (nc *netconfRequest) MarshalMethod() string {
 		}
 	}
 	switch nc.reqType {
-	// case commit:
-	// 	fallthrough
-	// case validate:
+	case commit:
+		enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "commit"}})
+	case validate:
+		enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "validate"}})
+		enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "source"}})
+		enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "candidate"}})
 	case editConf:
 		err = enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "config", Space: "urn:ietf:params:xml:ns:netconf:base:1.0"}})
 		if err != nil {
@@ -558,9 +564,6 @@ func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
 func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int) (string, string) {
 	defer timeTrack(time.Now(), "Request")
 
-	// @@@ Handle editConf
-	// @@@ Have commit and validate only do that
-
 	slice := strings.Split(requestLine, " ")
 
 	// Create a request structure with module, path array, and string value.
@@ -569,7 +572,7 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 	case commit:
 		fallthrough
 	case validate:
-		// @@@ Do these here, or leave til later?
+		ncRequest = newNetconfRequest(nil, nil, "", requestType, false)
 	case editConf:
 		if slice[0] == "delete" {
 			ncRequest = newNetconfRequest(yang.ToEntry(mods[slice[1]]), slice[2:], "", requestType, true)
@@ -605,50 +608,43 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 	//log.Debugf("Request reply: %v, error: %v\n", reply, error)
 	var theString string
 
-	if requestType == commit {
-		reply, error = s.Exec(netconf.RawMethod("<commit></commit>"))
-		log.Debugf("Request reply: %v, error: %v\n", reply, error)
-	} else if requestType == validate {
-		reply, error = s.Exec(netconf.RawMethod("<validate><source><candidate/></source></validate>"))
-		log.Debugf("Request reply: %v, error: %v\n", reply, error)
-	} else if requestType == getConf || requestType == getOper || requestType == editConf {
-		if error != nil {
-			fmt.Printf("Request reply: %v, error: %v\n", reply, error)
-			return "", ""
-		}
-		log.Debugf("Request reply: %v, error: %v, data: %v\n", reply, error, reply.Data)
-		// fmt.Printf("Request data: %v\n", reply.Data)
-
-		dec := xml.NewDecoder(strings.NewReader(reply.Data))
-		var tok xml.Token
-		var lastString string
-		var seenFirstEnd bool
-		seenFirstEnd = false
-		for {
-			tok, error = dec.Token()
-			// fmt.Printf("Token: %T %v\n", tok, error)
-			switch v := tok.(type) {
-			case xml.CharData:
-				// fmt.Printf("Token: %v %v\n", string(v), error)
-				lastString = string(v)
-				// theString = lastString
-			case xml.EndElement:
-				if !seenFirstEnd {
-					seenFirstEnd = true
-					theString = lastString
-				}
-
-			default:
-				// fmt.Printf("Token: %v %v\n", v, error)
-			}
-			if tok == nil {
-				break
-			}
-		}
-		// TODO Handle bool/presence type items
-		fmt.Println("Data: ", theString)
-
+	if error != nil {
+		fmt.Printf("Request reply: %v, error: %v\n", reply, error)
+		return "", ""
 	}
+	log.Debugf("Request reply: %v, error: %v, data: %v\n", reply, error, reply.Data)
+	// fmt.Printf("Request data: %v\n", reply.Data)
+
+	dec := xml.NewDecoder(strings.NewReader(reply.Data))
+	var tok xml.Token
+	var lastString string
+	var seenFirstEnd bool
+	seenFirstEnd = false
+	for {
+		tok, error = dec.Token()
+		// fmt.Printf("Token: %T %v\n", tok, error)
+		switch v := tok.(type) {
+		case xml.CharData:
+			// fmt.Printf("Token: %v %v\n", string(v), error)
+			lastString = string(v)
+			// theString = lastString
+		case xml.EndElement:
+			if !seenFirstEnd {
+				seenFirstEnd = true
+				theString = lastString
+			}
+
+		default:
+			// fmt.Printf("Token: %v %v\n", v, error)
+		}
+		if tok == nil {
+			break
+		}
+	}
+	// TODO Handle bool/presence type items
+	fmt.Println("Data: ", theString)
+
+	// }
 	if reply != nil {
 		return reply.Data, theString
 	} else {
