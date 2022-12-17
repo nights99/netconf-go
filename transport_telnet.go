@@ -5,7 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nemith/go-netconf/v2/transport"
+	// "github.com/nemith/go-netconf/v2/transport"
+	"github.com/nemith/netconf/transport"
 	"github.com/ziutek/telnet"
 )
 
@@ -22,11 +23,15 @@ type VendorIOProc interface {
 	StartNetconf(*TransportTelnet) error
 }
 
+type framer = transport.Framer
+type TransportTelnet = Transport
+
 // TransportTelnet is used to define what makes up a Telnet Transport layer for
 // NETCONF
-type TransportTelnet struct {
-	*transport.FramedTransport
+// type TransportTelnet struct {
+type Transport struct {
 	telnetConn *telnet.Conn
+	*framer
 }
 
 // Dial is used to create a TCP Telnet connection to the remote host returning
@@ -44,7 +49,8 @@ func (t *TransportTelnet) Dial(target string, username string, password string, 
 
 	t.telnetConn = tn
 	// t.ReadWriteCloser = tn
-	t.FramedTransport = transport.NewFramedTransport(tn, tn)
+	// t.FramedTransport = transport.NewFramedTransport(tn, tn)
+	t.framer = transport.NewFramer(tn, tn)
 
 	// vendor.Login(t, username, password)
 	// vendor.StartNetconf(t)

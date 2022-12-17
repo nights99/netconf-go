@@ -170,7 +170,7 @@ func main() {
 	globalSession = s
 
 	if !testMode {
-		defer s.Close()
+		defer s.Close(context.Background())
 	}
 
 	// fmt.Printf("Server Capabilities: '%+v'\n", s.ServerCapabilities[0])

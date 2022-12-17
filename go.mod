@@ -12,8 +12,8 @@ require (
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
-	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d
-	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9 // indirect
+	golang.org/x/crypto v0.0.0-20221010152910-d6f0a8c073c2
+	golang.org/x/sys v0.0.0-20221013171732-95e765b1cc43 // indirect
 	nhooyr.io/websocket v1.8.7
 )
 
@@ -36,9 +36,9 @@ require (
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
+	github.com/nemith/netconf v0.0.0-20221130162605-a32beb732855 // indirect
 	github.com/openconfig/gnmi v0.0.0-20210914185457-51254b657b7d // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
