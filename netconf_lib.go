@@ -15,13 +15,23 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type requestType int
+
 const (
-	validate = 0
-	commit   = 1
-	getConf  = 2
-	getOper  = 3
-	rpcOp    = 5
-	editConf = 6
+	validate requestType = iota
+	commit               = 1
+	getConf              = 2
+	getOper              = 3
+	rpcOp                = 5
+	editConf             = 6
+)
+
+type cfgDatastore int
+
+const (
+	running            cfgDatastore = iota
+	candidate                       = 1
+	runningInheritance              = 2
 )
 
 const (
@@ -44,7 +54,7 @@ type netconfRequest struct {
 	ncEntry     *yang.Entry
 	NetConfPath []netconfPathElement
 	Value       string
-	reqType     int
+	reqType     requestType
 }
 
 type schemaReply struct {
@@ -313,7 +323,7 @@ func listYang(path string) ([]string, int) {
 	return names, returnType
 }
 
-func newNetconfRequest(netconfEntry *yang.Entry, Path []string, value string, requestType int, delete bool) *netconfRequest {
+func newNetconfRequest(netconfEntry *yang.Entry, Path []string, value string, requestType requestType, delete bool) *netconfRequest {
 	ncArray := make([]netconfPathElement, len(Path))
 	for i, p := range Path {
 		if strings.Contains(p, "=") {
@@ -337,7 +347,7 @@ func newNetconfRequest(netconfEntry *yang.Entry, Path []string, value string, re
 	}
 }
 
-func emitNestedXML(enc *xml.Encoder, paths []netconfPathElement, value string, reqType int) {
+func emitNestedXML(enc *xml.Encoder, paths []netconfPathElement, value string, reqType requestType) {
 	var start3 xml.StartElement
 	if paths[0].delete {
 		start3 = xml.StartElement{
@@ -561,7 +571,7 @@ func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
 
 	return mod
 }
-func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int) (string, string) {
+func sendNetconfRequest(s *netconf.Session, requestLine string, requestType requestType) (string, string) {
 	defer timeTrack(time.Now(), "Request")
 
 	slice := strings.Split(requestLine, " ")

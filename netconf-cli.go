@@ -310,7 +310,7 @@ func main() {
 					continue
 				}
 			}
-			var op int
+			var op requestType
 			switch slice[0] {
 			case "get-oper":
 				op = getOper
