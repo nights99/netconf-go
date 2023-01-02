@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	netconf "github.com/nemith/go-netconf/v2"
+	netconf "github.com/nemith/netconf"
 	"github.com/openconfig/goyang/pkg/yang"
 	log "github.com/sirupsen/logrus"
 )

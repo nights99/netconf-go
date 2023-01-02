@@ -15,8 +15,10 @@ import (
 	"strings"
 
 	"github.com/chzyer/readline"
-	netconf "github.com/nemith/go-netconf/v2"
-	ncssh "github.com/nemith/go-netconf/v2/transport/ssh"
+	// netconf "github.com/nemith/go-netconf/v2"
+	// ncssh "github.com/nemith/go-netconf/v2/transport/ssh"
+	netconf "github.com/nemith/netconf"
+	ncssh "github.com/nemith/netconf/transport/ssh"
 	"github.com/openconfig/goyang/pkg/yang"
 	"github.com/peterh/liner"
 	log "github.com/sirupsen/logrus"

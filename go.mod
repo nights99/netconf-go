@@ -19,7 +19,8 @@ require (
 
 require (
 	github.com/Juniper/go-netconf v0.3.0
-	github.com/nemith/go-netconf/v2 v2.0.0-00010101000000-000000000000
+	// github.com/nemith/go-netconf/v2 v2.0.0-00010101000000-000000000000
+	github.com/nemith/netconf v0.0.0-20221130162605-a32beb732855
 	github.com/ziutek/telnet v0.0.0-20180329124119-c3b780dc415b
 )
 
@@ -36,7 +37,6 @@ require (
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
-	github.com/nemith/netconf v0.0.0-20221130162605-a32beb732855 // indirect
 	github.com/openconfig/gnmi v0.0.0-20210914185457-51254b657b7d // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
@@ -57,6 +57,7 @@ replace github.com/openconfig/goyang => ./goyang/
 // go mod edit -replace github.com/Juniper/go-netconf=github.com/nights99/go-netconf@master
 // replace github.com/Juniper/go-netconf => ./src/github.com/Juniper/go-netconf/
 // replace github.com/Juniper/go-netconf => ./go-netconf/
-replace github.com/nemith/go-netconf/v2 => ./go-netconf-v2/
+// replace github.com/nemith/go-netconf/v2 => ./go-netconf-v2/
+replace github.com/nemith/netconf => ./go-netconf-v2/
 
 // replace github.com/Juniper/go-netconf => github.com/nights99/go-netconf v0.1.2-0.20220723134019-7f4f80450f34
