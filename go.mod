@@ -4,38 +4,38 @@ go 1.18
 
 require (
 	github.com/Juniper/go-netconf v0.3.0
-	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e
+	github.com/chzyer/readline v1.5.1
 	github.com/gin-gonic/gin v1.7.7 // indirect
 	github.com/gobwas/ws v1.1.0
-	github.com/mattn/go-runewidth v0.0.13 // indirect
-	github.com/openconfig/goyang v0.3.2
+	github.com/mattn/go-runewidth v0.0.14 // indirect
+	github.com/openconfig/goyang v1.2.0
 	github.com/peterh/liner v1.2.2
-	github.com/rivo/uniseg v0.2.0 // indirect
-	github.com/sirupsen/logrus v1.8.1
+	github.com/rivo/uniseg v0.4.4 // indirect
+	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.7.0
-	golang.org/x/crypto v0.0.0-20220112180741-5e0467b6c7ce
-	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9 // indirect
+	golang.org/x/crypto v0.8.0
+	golang.org/x/sys v0.7.0 // indirect
 	nhooyr.io/websocket v1.8.7
 )
 
 require github.com/ziutek/telnet v0.0.0-20180329124119-c3b780dc415b
 
 require (
-	github.com/chzyer/logex v1.2.0 // indirect
-	github.com/chzyer/test v0.0.0-20210722231415-061457976a23 // indirect
+	github.com/chzyer/logex v1.2.1 // indirect
+	github.com/chzyer/test v1.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/google/go-cmp v0.5.8 // indirect
+	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
-	github.com/klauspost/compress v1.14.1 // indirect
+	github.com/klauspost/compress v1.16.5 // indirect
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/openconfig/gnmi v0.0.0-20210914185457-51254b657b7d // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
+	golang.org/x/term v0.7.0 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
