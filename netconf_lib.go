@@ -162,7 +162,8 @@ func listYang(path string) ([]string, int) {
 								// module; check this explicitly to at least
 								// make this assumption obvious.
 								for i := 2; i < len(aug_tokens); i += 2 {
-									if aug_tokens[i] != aug_tokens[0] {
+									if !strings.HasPrefix(aug_tokens[0], aug_tokens[i]) {
+										// TODO do something better than panic here
 										panic("Augments with different prefixes not currently support: " + e)
 									}
 								}

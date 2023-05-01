@@ -103,28 +103,15 @@ var testMode = false
 
 func main() {
 	var port *int
-	var port1 int
-	var addr1, logLevel1 string
 	var addr, logLevel *string
 	var telnet *bool
-	if flag.CommandLine.Lookup("port") != nil {
-		// port = flag.Getter(flag.CommandLine.Lookup("port").Value).Get()
 
-		port1 = flag.Lookup("port").Value.(flag.Getter).Get().(int)
-		port = &port1
-
-		addr1 = flag.Lookup("address").Value.(flag.Getter).Get().(string)
-		addr = &addr1
-		logLevel1 = flag.Lookup("debug").Value.(flag.Getter).Get().(string)
-		logLevel = &logLevel1
-	} else {
-		// Parse args
-		port = flag.Int("port", 10555, "Port number to connect to")
-		addr = flag.String("address", "localhost", "Address or host to connect to")
-		telnet = flag.Bool("t", false, "Use telnet to connect")
-		logLevel = flag.String("debug", log.InfoLevel.String(), "debug level")
-		flag.Parse()
-	}
+	// Parse args
+	port = flag.Int("port", 10555, "Port number to connect to")
+	addr = flag.String("address", "localhost", "Address or host to connect to")
+	telnet = flag.Bool("t", false, "Use telnet to connect")
+	logLevel = flag.String("debug", log.InfoLevel.String(), "debug level")
+	flag.Parse()
 
 	l2, _ := log.ParseLevel(*logLevel)
 	log.SetLevel(l2)
