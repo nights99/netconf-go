@@ -43,7 +43,7 @@ require (
 // replace github.com/openconfig/goyang => ./goyang/
 
 // replace github.com/openconfig/goyang => ./src/github.com/openconfig/goyang/
-replace github.com/openconfig/goyang => github.com/nights99/goyang v0.2.5-0.20220723135300-f046d3f17ec9
+replace github.com/openconfig/goyang => github.com/nights99/goyang v0.2.5-0.20230528130339-76fd486cbc28
 
 // replace github.com/peterh/liner => ./src/github.com/peterh/liner
 
