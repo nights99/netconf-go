@@ -476,7 +476,7 @@ func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
 	// fmt.Printf("%v\n", strs)
 	// reply.Data = re.ReplaceAllLiteralString(reply.Data, "")
 	yangReply := yangReply{}
-	_ = xml.Unmarshal([]byte(reply.Data), &yangReply)
+	_ = xml.Unmarshal([]byte(reply.Body), &yangReply)
 	//fmt.Printf("Request reply: %v, error: %v\n", yangReply, err)
 	err := ms.Parse(yangReply.Rest, yangMod)
 	if err != nil {
@@ -602,10 +602,10 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 			fmt.Printf("Request reply: %v, error: %v\n", reply, error)
 			return "", ""
 		}
-		log.Debugf("Request reply: %v, error: %v, data: %v\n", reply, error, reply.Data)
+		log.Debugf("Request reply: %v, error: %v, data: %v\n", reply, error, reply.Body)
 		// fmt.Printf("Request data: %v\n", reply.Data)
 
-		dec := xml.NewDecoder(bytes.NewReader(reply.Data))
+		dec := xml.NewDecoder(bytes.NewReader(reply.Body))
 		var tok xml.Token
 		var lastString string
 		var seenFirstEnd bool
@@ -636,7 +636,7 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 
 	}
 	if reply != nil {
-		return string(reply.Data), theString
+		return string(reply.Body), theString
 	} else {
 		return error.Error(), ""
 	}
@@ -660,7 +660,7 @@ func getSchemaList(s *netconf.Session) []string {
 	}
 	// fmt.Printf("Request reply: %v, error: %v\n", reply.Data[0:1000], error)
 	schemaReply := schemaReply{}
-	error = xml.Unmarshal([]byte(reply.Data), &schemaReply)
+	error = xml.Unmarshal([]byte(reply.Body), &schemaReply)
 	//fmt.Printf("Request reply: %v, error: %v\n", schemaReply.Rest.Rest.Schemas[0], err)
 	//fmt.Printf("Request reply: %v, error: %v\n", schemaReply.Rest.Rest.Schemas[99].Identifier, err)
 	if error != nil {
