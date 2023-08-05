@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e
 	github.com/gin-gonic/gin v1.7.7 // indirect
-	github.com/gobwas/ws v1.1.0
+	github.com/gobwas/ws v1.2.1
 	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/openconfig/goyang v0.3.2
 	github.com/peterh/liner v1.2.2

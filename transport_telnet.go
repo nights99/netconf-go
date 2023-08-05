@@ -64,8 +64,7 @@ func (t *TransportTelnet) Close() error {
 
 // DialTelnet dials and returns the usable telnet session.
 func DialTelnet(target string, username string, password string, vendor VendorIOProc) (transport.Transport, error) {
-	var t *TransportTelnet
-	t = &TransportTelnet{}
+	var t *TransportTelnet = &TransportTelnet{}
 	if err := t.Dial(target, username, password, vendor); err != nil {
 		return nil, err
 	}

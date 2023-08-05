@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Juniper/go-netconf/netconf"
+	netconf "github.com/nemith/netconf"
 	"github.com/openconfig/goyang/pkg/yang"
 	"github.com/stretchr/testify/assert"
 )
