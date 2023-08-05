@@ -1,0 +1,7 @@
+[submodule "go-netconf"]
+	path = go-netconf
+	url = ./go-netconf/
+
+[submodule "go-netconf-v2"]
+	path = go-netconf-v2
+	url = ./go-netconf-v2/
