@@ -1,3 +1,5 @@
+//go:build exclude
+
 package main
 
 import (
@@ -10,16 +12,19 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// Run with go test -v -count=1 transport_websocket_test.go netconf_lib.go xr_completions.go transport_websocket.go
+
+var modNames []string
+
 func TestWS(t *testing.T) {
 	// log.SetLevel(log.DebugLevel)
 	ms = yang.NewModules()
 	var s *netconf.Session
 	var err error
-	success := assert.Panics(t, func() { s, err = DialWebSocket("localhost", 12345) })
-	if success {
-		return
-	}
+	assert.NotPanics(t, func() { s, err = DialWebSocket("localhost", 12345) })
 	println("Foo:", s, err)
+	t.Log("Foo:", s, err)
+	globalSession = s
 	modNames = getSchemaList(s)
 	fmt.Printf("Modname: %v\n", modNames[:3])
 

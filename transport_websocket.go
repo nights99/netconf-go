@@ -1,4 +1,4 @@
-//go:build exclude
+//go:build wasm
 
 package main
 
@@ -25,17 +25,17 @@ var ctx context.Context
 
 // TransportWebSocket x
 type TransportWebSocket struct {
-	transport.Transport
 	wsConn  *websocket.Conn
 	lastMsg []byte
 	offset  int
+	*transport.Framer
 }
 
 // Dial x
 func (t *TransportWebSocket) Dial(address string, port int) error {
 	t.wsConn, _ = Connect(address, port)
+	t.Framer = transport.NewFramer(t, t)
 
-	t.ReadWriteCloser = t
 	return nil
 }
 
@@ -126,5 +126,9 @@ func DialWebSocket(address string, port int) (*netconf.Session, error) {
 		// t.Close()
 		return nil, err
 	}
-	return netconf.NewSession(&t), nil
+	session, err := netconf.Open(&t)
+	if err != nil {
+		panic(err)
+	}
+	return session, nil
 }

@@ -459,13 +459,13 @@ func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
 	 */
 	log.Debug("Getting: ", yangMod)
 	reply, error := s.Do(context.Background(),
-		&netconf.RPCMsg{Operation: `<get-schema
+		`<get-schema
 		 xmlns="urn:ietf:params:xml:ns:yang:ietf-netconf-monitoring">
-	 <identifier>` +
-			yangMod +
+	 <identifier>`+
+			yangMod+
 			`</identifier>
 		 </get-schema>
-	 `})
+	 `)
 	if error != nil {
 		fmt.Printf("Request reply error1: %v\n", error)
 		return nil
@@ -577,9 +577,9 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 		panic("Bad request type")
 	}
 
-	//fmt.Printf("ncRequest: %v\n", ncRequest)
+	// fmt.Printf("ncRequest: %v\n", ncRequest)
 
-	rpc := netconf.RPCMsg{Operation: ncRequest}
+	rpc := ncRequest
 	// xml2, err := xml.MarshalIndent(ncRequest, "", "  ")
 	// if err != nil {
 	// 	fmt.Fprintln(os.Stderr, err)
@@ -588,18 +588,18 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 
 	reply, error := s.Do(context.Background(), &rpc)
 
-	//log.Debugf("Request reply: %v, error: %v\n", reply, error)
+	// log.Debugf("Request reply: %s, error: %v\n", reply, error)
 	var theString string
 
 	if requestType == commit {
-		reply, error = s.Do(context.Background(), &netconf.RPCMsg{Operation: "<commit></commit>"})
+		error = s.Commit(context.Background())
 		log.Debugf("Request reply: %v, error: %v\n", reply, error)
 	} else if requestType == validate {
-		reply, error = s.Do(context.Background(), &netconf.RPCMsg{Operation: "<validate><source><candidate/></source></validate>"})
+		error = s.Validate(context.Background(), netconf.Candidate)
 		log.Debugf("Request reply: %v, error: %v\n", reply, error)
 	} else if requestType == getConf || requestType == getOper {
 		if error != nil {
-			fmt.Printf("Request reply: %v, error: %v\n", reply, error)
+			fmt.Printf("Request reply: %s, error: %v\n", reply, error)
 			return "", ""
 		}
 		log.Debugf("Request reply: %v, error: %v, data: %v\n", reply, error, reply.Body)
@@ -646,13 +646,13 @@ func getSchemaList(s *netconf.Session) []string {
 	/*
 	 * Get a list of schemas
 	 */
-	reply, error := s.Do(context.Background(), &netconf.RPCMsg{Operation: `<get>
+	reply, error := s.Do(context.Background(), `<get>
     <filter type="subtree">
       <netconf-state xmlns="urn:ietf:params:xml:ns:yang:ietf-netconf-monitoring">
         <schemas/>
       </netconf-state>
     </filter>
-    </get>`})
+    </get>`)
 	if error != nil {
 		fmt.Printf("Request reply error2: %v\n", error)
 		// panic(error)

@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	// "github.com/nemith/go-netconf/v2/transport"
 	"github.com/nemith/netconf/transport"
@@ -14,7 +13,7 @@ const (
 	// telnetDefaultPort sets the default port for use by Telnet
 	telnetDefaultPort = 23
 	// telnetTimeout sets the timeout duration for use by Telnet
-	telnetTimeout = 10 * time.Second
+	// telnetTimeout = 10 * time.Second
 )
 
 // VendorIOProc is the interface used when establishing a telnet NETCONF session
