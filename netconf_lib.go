@@ -600,7 +600,7 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 		log.Debugf("Request reply: %v, error: %v\n", reply, error)
 	} else if requestType == getConf || requestType == getOper {
 		if error != nil {
-			fmt.Printf("Request reply: %s, error: %v\n", reply, error)
+			fmt.Printf("Request reply: %v, error: %v\n", reply, error)
 			return "", ""
 		}
 		log.Debugf("Request reply: %v, error: %v, data: %v\n", reply, error, reply.Body)
