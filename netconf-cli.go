@@ -183,59 +183,9 @@ func main() {
 
 	ms = yang.NewModules()
 
-	realMods := true
-	if realMods {
-		modNames = getSchemaList(s)
-		//fmt.Printf("modNames: %v\n", modNames)
-	} else {
-		if err := ms.Read("Cisco-IOS-XR-shellutil-cfg.yang"); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-		if err := ms.Read("Cisco-IOS-XR-cdp-cfg.yang"); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-
-		//fmt.Printf("%v\n", ms)
-
-		for _, m := range ms.Modules {
-			if mods[m.Name] == nil {
-				mods[m.Name] = m
-				modNames = append(modNames, m.Name)
-			}
-		}
-	}
+	modNames = getSchemaList(s)
+	//fmt.Printf("modNames: %v\n", modNames)
 	sort.Strings(modNames)
-	//println(modNames)
-	//fmt.Printf("names: %v\n", modNames)
-	//entries := make([]*yang.Entry, len(modNames))
-	//for x, n := range modNames {
-	//	entries[x] = yang.ToEntry(mods[n])
-	//}
-	//fmt.Printf("+%v\n", entries[0])
-	//for _, e := range entries {
-	//	//print(e.Description)
-	//	fmt.Printf("\n\n\n\n")
-	//	//e.Print(os.Stdout)
-	//	for s1, e1 := range e.Dir {
-	//		println(s1)
-	//		e1.Print(os.Stdout)
-	//	}
-	//}
-
-	// l, err := readline.NewEx(&readline.Config{
-	// 	Prompt:            "netconf> ",
-	// 	HistoryFile:       "/tmp/readline.tmp",
-	// 	AutoComplete:      completer,
-	// 	InterruptPrompt:   "^C",
-	// 	EOFPrompt:         "exit",
-	// 	HistorySearchFold: true,
-	// })
-	// if err != nil {
-	// 	println("Error!")
-	// 	panic(err)
-	// }
-	// defer l.Close()
-	// log.SetOutput(l.Stderr())
 	var requestLine string
 
 	var liner2 *liner.State = liner.NewLiner()
@@ -262,8 +212,6 @@ func main() {
 		// Maps string to void
 		// Becomes a nested map of strings
 		// requestMap := make(map[string]interface{})
-		//println("In loop")
-		// line, err := l.Readline()
 		line, err := liner2.Prompt("netconf> ")
 		// fmt.Printf("Liner: %v : %v", line, err)
 		if err == readline.ErrInterrupt {
