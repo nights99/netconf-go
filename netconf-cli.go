@@ -55,10 +55,10 @@ func wordCompleter(line string, pos2 int) (head string, completions []string, ta
 			if strings.Contains(e, " ") {
 				found_augment = true
 				tokens2 := strings.Split(e, " ")
-				if strings.HasPrefix(tokens2[len(tokens2)-1], tokens[len(tokens)-1]) || 
-				strings.HasSuffix(tokens2[len(tokens2)-2], tokens[len(tokens)-1]) || // Handles case where we have an augment and then a new token after it. Suffix isn't really right - we want to strip the augment, then compare the prefix
-				strings.HasSuffix(line, " ") || 
-				strings.HasPrefix(tokens[len(tokens)-1], "/") {
+				if strings.HasPrefix(tokens2[len(tokens2)-1], tokens[len(tokens)-1]) ||
+					strings.HasSuffix(tokens2[len(tokens2)-2], tokens[len(tokens)-1]) || // Handles case where we have an augment and then a new token after it. Suffix isn't really right - we want to strip the augment, then compare the prefix
+					strings.HasSuffix(line, " ") ||
+					strings.HasPrefix(tokens[len(tokens)-1], "/") {
 					cs[pos] = tokens2[len(tokens2)-1]
 					pos++
 				}
@@ -103,13 +103,12 @@ func wordCompleter(line string, pos2 int) (head string, completions []string, ta
 	}
 }
 
-var testMode = false
-
 func main() {
 	var port int
 	var addr string
 	var logLevel *string
 	var telnet *bool
+	var testMode = false
 	var err error
 
 	// Read config file using Viper
