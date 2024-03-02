@@ -11,15 +11,15 @@ require (
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.4
-	golang.org/x/crypto v0.17.0
-	golang.org/x/sys v0.15.0 // indirect
+	golang.org/x/crypto v0.19.0
+	golang.org/x/sys v0.17.0 // indirect
 	nhooyr.io/websocket v1.8.10
 )
 
 require (
 	github.com/Juniper/go-netconf v0.3.0
 	// github.com/nemith/go-netconf/v2 v2.0.0-00010101000000-000000000000
-	github.com/nemith/netconf v0.0.1
+	github.com/nemith/netconf v0.0.2-0.20240213161817-d17503c131ac
 	github.com/ziutek/telnet v0.0.0-20180329124119-c3b780dc415b
 )
 
@@ -46,7 +46,6 @@ replace github.com/openconfig/goyang => ./goyang/
 // go mod edit -replace github.com/Juniper/go-netconf=github.com/nights99/go-netconf@master
 // replace github.com/Juniper/go-netconf => ./src/github.com/Juniper/go-netconf/
 // replace github.com/Juniper/go-netconf => ./go-netconf/
-// replace github.com/nemith/go-netconf/v2 => ./go-netconf-v2/
-replace github.com/nemith/netconf => ./go-netconf-v2/
+// replace github.com/nemith/netconf => ./go-netconf-v2/
 
 // replace github.com/Juniper/go-netconf => github.com/nights99/go-netconf v0.1.2-0.20220723134019-7f4f80450f34
