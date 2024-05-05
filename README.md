@@ -27,7 +27,7 @@ TODO
 
 Host details can be saved into a Yaml file `hosts.yaml` in the current directory.
 
-Each host should have akey that is then passed to the 'hosts' command-line parameter to select the entry.
+Each host should have a key that is then passed to the 'hosts' command-line parameter to select the entry.
 
 The entries under the key should match the equivalent command-line parameters.
 

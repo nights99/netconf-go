@@ -119,9 +119,7 @@ func main() {
 			// Config file not found; ignore error if desired
 		} else {
 			// Config file was found but another error was produced
-			if err != nil {
-				panic(err)
-			}
+			panic(err)
 		}
 	}
 
@@ -145,13 +143,18 @@ func main() {
 		}
 		hostConfig.BindPFlags(pflag.CommandLine)
 	}
-	// @@@ Need to check that either host has been set or that the values were passed on the command line.
-	// @@@ Use MergeConfigMap? sec overrides tgt?
+	viper.BindPFlags(pflag.CommandLine)
 
-	addr = hostConfig.GetString("address")
-	port = hostConfig.GetInt("port")
-	user := hostConfig.GetString("user")
-	password := hostConfig.GetString("password")
+	log.Debugf("pflags: %v\n", viper.AllSettings())
+	if hostConfig != nil {
+		log.Debugf("host pflags: %v\n", hostConfig.AllSettings())
+		viper.MergeConfigMap(hostConfig.AllSettings())
+	}
+	log.Debugf("merge pflags: %v\n", viper.AllSettings())
+	addr = viper.GetString("address")
+	port = viper.GetInt("port")
+	user := viper.GetString("user")
+	password := viper.GetString("password")
 
 	l2, _ := log.ParseLevel(*logLevel)
 	log.SetLevel(l2)
