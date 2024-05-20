@@ -25,7 +25,6 @@ func webToSSH(web net.Conn, ssh *netconf.TransportSSH) {
 	defer wg.Done()
 	// var n int
 	// var err error
-	// TODO Could we just use io.Copy()?
 	for {
 		payload, err := wsutil.ReadClientBinary(web)
 

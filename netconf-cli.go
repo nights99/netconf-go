@@ -20,6 +20,9 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"golang.org/x/crypto/ssh"
+
+	// "netconf-go/internal/lib"
+	"netconf-go/internal/xmlstore"
 )
 
 // Array of available Yang modules
@@ -210,6 +213,7 @@ func main() {
 	if testMode {
 		return
 	}
+	var store xmlstore.XMLStore
 	for {
 		// Maps string to void
 		// Becomes a nested map of strings
@@ -231,6 +235,9 @@ func main() {
 			// Should really be when a command has been validated and executed.
 			liner2.AppendHistory(line)
 		}
+		// Add to xmlstore
+		store.Insert(line)
+
 		switch {
 		case strings.HasPrefix(line, "set"), strings.HasPrefix(line, "delete"):
 			// TODO this is a big current limitation - can only set/delete a

@@ -1,5 +1,7 @@
 package main
 
+// package lib
+
 import (
 	"bytes"
 	"encoding/xml"
@@ -78,8 +80,9 @@ type schemaReply struct {
 }
 
 var ms *yang.Modules
-
 var mods = map[string]*yang.Module{}
+
+// var modNames []string
 
 var globalSession *netconf.Session
 
@@ -601,7 +604,7 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType requ
 		panic("Bad request type")
 	}
 
-	//fmt.Printf("ncRequest: %v\n", ncRequest)
+	// fmt.Printf("ncRequest: %v\n", ncRequest)
 
 	var reply *netconf.RPCReply
 	var error error

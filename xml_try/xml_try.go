@@ -6,10 +6,37 @@ import (
 	"strings"
 )
 
+type xmlElementInterface interface {
+	insert(path []string)
+}
+
+type idRefElement struct {
+	xmlElement
+	foo string
+}
+
+// Custom xml marshalling function for the above type
+func (el idRefElement) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	// <type xmlns:idx="urn:ietf:params:xml:ns:yang:iana-if-type">idx:ethernetCsmacd</type>
+	// Add the foo attribute to the start element
+	start.Attr = append(start.Attr, xml.Attr{Name: xml.Name{Space: "", Local: "xmlns:idx"}, Value: "urn:ietf:params:xml:ns:yang:iana-if-type"})
+	start.Name.Local = "type"
+	// Encode the start element
+	if err := e.EncodeToken(start); err != nil {
+		return err
+	}
+	// Encode the value
+	if err := e.EncodeToken(xml.CharData("idx:" + el.foo)); err != nil {
+		return err
+	}
+	// Encode the end element
+	return e.EncodeToken(start.End())
+}
+
 type xmlElement struct {
 	XMLName  xml.Name
 	Value    string `xml:",chardata"`
-	Children []xmlElement
+	Children []xmlElementInterface
 }
 
 func (el *xmlElement) insert(path []string) {
@@ -23,7 +50,7 @@ func (el *xmlElement) insert(path []string) {
 		}
 	} else {
 		// Add new element, then insert into that
-		el.Children = append(el.Children, xmlElement{xml.Name{Space: "", Local: ss[1]}, "", []xmlElement{}})
+		el.Children = append(el.Children, &xmlElement{xml.Name{Space: "", Local: ss[1]}, "", []xmlElementInterface{}})
 	}
 
 	// for _, s := range strings.Split(path, " ") {
@@ -34,12 +61,13 @@ func (el *xmlElement) insert(path []string) {
 
 func main() {
 	foo := xmlElement{xml.Name{Space: "ns1", Local: "foo"}, "val1",
-		[]xmlElement{
-			{xml.Name{Space: "ns2", Local: "bar"}, "val2", []xmlElement{}},
-			{xml.Name{Space: "", Local: "bar2"}, "", []xmlElement{}},
+		[]xmlElementInterface{
+			xmlElementInterface(&xmlElement{xml.Name{Space: "ns2", Local: "bar"}, "val2", []xmlElementInterface{}}),
+			xmlElementInterface(&xmlElement{xml.Name{Space: "", Local: "bar2"}, "", []xmlElementInterface{}}),
 		},
 	}
 	foo.insert(strings.Split("foo bar2 next_level", " "))
+	foo.Children = append(foo.Children, &idRefElement{xmlElement{xml.Name{Space: "", Local: "next_level"}, "", []xmlElementInterface{}}, "ethernetCsmacd"})
 	myxml, err := xml.MarshalIndent(foo, "", "  ")
 	fmt.Printf("%v %v\n", string(myxml), err)
 }
