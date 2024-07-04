@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/xml"
 	"fmt"
+	"netconf-go/internal/xmlstore"
 	"os"
 	"regexp"
 	"sort"
@@ -576,9 +577,12 @@ func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
 	return mod
 }
 func sendNetconfRequest(s *netconf.Session, requestLine string, requestType requestType) (string, string) {
+	var store xmlstore.XMLStore
+
 	defer timeTrack(time.Now(), "Request")
 
 	slice := strings.Split(requestLine, " ")
+	yang_module := yang.ToEntry(mods[slice[1]])
 
 	// Create a request structure with module, path array, and string value.
 	var ncRequest *netconfRequest
@@ -615,9 +619,12 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType requ
 			fmt.Fprintln(os.Stderr, err)
 		}
 		log.Debug(string(xml2))
+		println(string(xml2))
 
 		reply, error = s.Exec(ncRequest)
 	}
+	// Add to xmlstore
+	store.Insert(yang_module, requestLine)
 
 	//log.Debugf("Request reply: %v, error: %v\n", reply, error)
 	var theString string

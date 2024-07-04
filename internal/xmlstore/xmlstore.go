@@ -4,6 +4,8 @@ import (
 	"encoding/xml"
 	"fmt"
 	"strings"
+
+	"github.com/openconfig/goyang/pkg/yang"
 )
 
 type XMLStore struct {
@@ -11,7 +13,7 @@ type XMLStore struct {
 }
 
 type xmlElementInterface interface {
-	insert(path []string)
+	insert(yangMod *yang.Entry, path []string)
 }
 
 type idRefElement struct {
@@ -43,31 +45,32 @@ type xmlElement struct {
 	Children []xmlElementInterface
 }
 
-func (el *xmlElement) insert(path []string) {
+func (el *xmlElement) insert(yangMod *yang.Entry, path []string) {
 	// ss := strings.Split(path, " ")
 	ss := path
 	if ss[0] == el.XMLName.Local {
 		// Found element, recurse
 		println("Found ", ss[0])
 		for i := range el.Children {
-			el.Children[i].insert(ss[1:])
+			el.Children[i].insert(nil, ss[1:])
 		}
 	} else {
 		// Add new element, then insert into that
 		fmt.Printf("Adding %v to x%vx\n", ss[0], el.XMLName.Local)
 		if el.XMLName.Local == "" {
 			el.XMLName.Local = ss[0]
+			el.XMLName.Space = yangMod.Namespace().Name
 			el.Children = append(el.Children, &xmlElement{xml.Name{Space: "", Local: ss[1]}, "", []xmlElementInterface{}})
 			if len(ss) == 2 {
 				return
 			}
-			el.Children[len(el.Children)-1].insert(ss[2:])
+			el.Children[len(el.Children)-1].insert(nil, ss[2:])
 		} else {
-			el.Children = append(el.Children, &xmlElement{xml.Name{Space: "", Local: ss[0]}, "", []xmlElementInterface{}})
+			el.Children = append(el.Children, &xmlElement{xml.Name{Local: ss[0]}, "", []xmlElementInterface{}})
 			if len(ss) == 1 {
 				return
 			}
-			el.Children[len(el.Children)-1].insert(ss[1:])
+			el.Children[len(el.Children)-1].insert(nil, ss[1:])
 		}
 	}
 
@@ -90,15 +93,17 @@ func (el *xmlElement) insert(path []string) {
 // 	fmt.Printf("%v %v\n", string(myxml), err)
 // }
 
-func (store XMLStore) Insert(line string) {
+func (store XMLStore) Insert(yangMod *yang.Entry, line string) {
 	fmt.Printf("Inserting %v\n", line)
 	// Split on space
 	ss := strings.Split(line, " ")
 	// Drop first element from slice
 	ss = ss[1:]
 	// Insert into store
-	store.Root.insert(ss)
-	fmt.Printf("%v\n", store)
+	store.Root.XMLName.Local = ss[1]
+	store.Root.XMLName.Space = yangMod.Namespace().Name
+	store.Root.insert(yangMod, ss[2:])
+	// fmt.Printf("%v\n", store)
 	myxml, err := xml.MarshalIndent(store.Root, "", "  ")
 	fmt.Printf("%v %v\n", string(myxml), err)
 }
