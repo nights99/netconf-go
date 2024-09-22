@@ -90,6 +90,7 @@ func sshToWeb(web net.Conn, ssh *netconf.TransportSSH) {
 	// bytes2 := make([]byte, 1024*1024)
 	var n, total int
 	var err error
+	// TODO Could we just use io.Copy()?
 	for {
 		total = 0
 		for {

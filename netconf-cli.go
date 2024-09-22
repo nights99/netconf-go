@@ -5,7 +5,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -13,6 +12,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	// "netconf-go/internal/lib"
+
+	// "netconf-go/internal/lib"
 
 	"github.com/chzyer/readline"
 	// netconf "github.com/nemith/go-netconf/v2"
@@ -22,10 +25,13 @@ import (
 	"github.com/openconfig/goyang/pkg/yang"
 	"github.com/peterh/liner"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 	"golang.org/x/crypto/ssh"
 )
 
 // Array of available Yang modules
+// TODO dubious sharing of global variables with the lib file...
 var modNames []string
 
 var historyFile = filepath.Join(os.TempDir(), ".liner_example_history")
@@ -39,7 +45,7 @@ func wordCompleter(line string, pos2 int) (head string, completions []string, ta
 	log.Debugf("tokens: %d, %v", len(tokens), tokens)
 
 	if len(tokens) >= 2 || strings.HasSuffix(line, " ") {
-		yangCompletions, returnType := listYang(line)
+		yangCompletions, returnType := ListYang(line)
 		// fmt.Printf("Completions %v\n", yangCompletions)
 
 		cs := make([]string, len(yangCompletions))
@@ -57,7 +63,10 @@ func wordCompleter(line string, pos2 int) (head string, completions []string, ta
 			if strings.Contains(e, " ") {
 				found_augment = true
 				tokens2 := strings.Split(e, " ")
-				if strings.HasPrefix(tokens2[len(tokens2)-1], tokens[len(tokens)-1]) || strings.HasSuffix(line, " ") || strings.HasPrefix(tokens[len(tokens)-1], "/") {
+				if strings.HasPrefix(tokens2[len(tokens2)-1], tokens[len(tokens)-1]) ||
+					strings.HasSuffix(tokens2[len(tokens2)-2], tokens[len(tokens)-1]) || // Handles case where we have an augment and then a new token after it. Suffix isn't really right - we want to strip the augment, then compare the prefix
+					strings.HasSuffix(line, " ") ||
+					strings.HasPrefix(tokens[len(tokens)-1], "/") {
 					cs[pos] = tokens2[len(tokens2)-1]
 					pos++
 				}
@@ -102,28 +111,66 @@ func wordCompleter(line string, pos2 int) (head string, completions []string, ta
 	}
 }
 
-var testMode = false
-
 func main() {
-	var port *int
-	var addr, logLevel *string
+	var port int
+	var addr string
+	var logLevel *string
 	var telnet *bool
+	var testMode = false
+	var err error
 
+	// Read config file using Viper
+	viper.SetConfigName("hosts")
+	viper.AddConfigPath(".")
+	if err := viper.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			// Config file not found; ignore error if desired
+		} else {
+			// Config file was found but another error was produced
+			panic(err)
+		}
+	}
+
+	// Config file found and successfully parsed
 	// Parse args
-	port = flag.Int("port", 10555, "Port number to connect to")
-	addr = flag.String("address", "localhost", "Address or host to connect to")
-	telnet = flag.Bool("t", false, "Use telnet to connect")
-	logLevel = flag.String("debug", log.InfoLevel.String(), "debug level")
-	flag.Parse()
+	pflag.Int("port", 22, "Port number to connect to")
+	pflag.String("address", "localhost", "Address or host to connect to")
+	host := pflag.String("host", "", "Hostname referring to hosts.yaml entry")
+	telnet = pflag.Bool("t", false, "Use telnet to connect")
+	logLevel = pflag.String("debug", log.InfoLevel.String(), "debug level")
+
+	pflag.String("user", "", "Username")
+	pflag.String("password", "", "Password")
+
+	pflag.Parse()
+	var hostConfig *viper.Viper
+	if *host != "" {
+		hostConfig = viper.Sub(*host)
+		if hostConfig == nil { // Sub returns nil if the key cannot be found
+			panic("host configuration not found")
+		}
+		hostConfig.BindPFlags(pflag.CommandLine)
+	}
+	viper.BindPFlags(pflag.CommandLine)
+
+	log.Debugf("pflags: %v\n", viper.AllSettings())
+	if hostConfig != nil {
+		log.Debugf("host pflags: %v\n", hostConfig.AllSettings())
+		viper.MergeConfigMap(hostConfig.AllSettings())
+	}
+	log.Debugf("merge pflags: %v\n", viper.AllSettings())
+	addr = viper.GetString("address")
+	port = viper.GetInt("port")
+	user := viper.GetString("user")
+	password := viper.GetString("password")
 
 	l2, _ := log.ParseLevel(*logLevel)
 	log.SetLevel(l2)
 
 	// Connect to the node
 	var s *netconf.Session
-	var err error
 	if *telnet {
-		transport, err := DialTelnet(*addr+":"+strconv.Itoa(*port), "lab", "lab", nil)
+		transport, err := DialTelnet(addr+":"+strconv.Itoa(port), "lab", "lab", nil)
 		if err != nil {
 			panic(err)
 		}
@@ -163,63 +210,13 @@ func main() {
 	}
 
 	// fmt.Printf("Server Capabilities: '%+v'\n", s.ServerCapabilities[0])
-	//fmt.Printf("Session Id: %d\n\n", s.SessionID)
+	// fmt.Printf("Session Id: %d\n\n", s.SessionID)
 
 	ms = yang.NewModules()
 
-	realMods := true
-	if realMods {
-		modNames = getSchemaList(s)
-		//fmt.Printf("modNames: %v\n", modNames)
-	} else {
-		if err := ms.Read("Cisco-IOS-XR-shellutil-cfg.yang"); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-		if err := ms.Read("Cisco-IOS-XR-cdp-cfg.yang"); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-
-		//fmt.Printf("%v\n", ms)
-
-		for _, m := range ms.Modules {
-			if mods[m.Name] == nil {
-				mods[m.Name] = m
-				modNames = append(modNames, m.Name)
-			}
-		}
-	}
+	modNames = getSchemaList(s)
+	//fmt.Printf("modNames: %v\n", modNames)
 	sort.Strings(modNames)
-	//println(modNames)
-	//fmt.Printf("names: %v\n", modNames)
-	//entries := make([]*yang.Entry, len(modNames))
-	//for x, n := range modNames {
-	//	entries[x] = yang.ToEntry(mods[n])
-	//}
-	//fmt.Printf("+%v\n", entries[0])
-	//for _, e := range entries {
-	//	//print(e.Description)
-	//	fmt.Printf("\n\n\n\n")
-	//	//e.Print(os.Stdout)
-	//	for s1, e1 := range e.Dir {
-	//		println(s1)
-	//		e1.Print(os.Stdout)
-	//	}
-	//}
-
-	// l, err := readline.NewEx(&readline.Config{
-	// 	Prompt:            "netconf> ",
-	// 	HistoryFile:       "/tmp/readline.tmp",
-	// 	AutoComplete:      completer,
-	// 	InterruptPrompt:   "^C",
-	// 	EOFPrompt:         "exit",
-	// 	HistorySearchFold: true,
-	// })
-	// if err != nil {
-	// 	println("Error!")
-	// 	panic(err)
-	// }
-	// defer l.Close()
-	// log.SetOutput(l.Stderr())
 	var requestLine string
 
 	var liner2 *liner.State = liner.NewLiner()
@@ -246,8 +243,6 @@ func main() {
 		// Maps string to void
 		// Becomes a nested map of strings
 		// requestMap := make(map[string]interface{})
-		//println("In loop")
-		// line, err := l.Readline()
 		line, err := liner2.Prompt("netconf> ")
 		// fmt.Printf("Liner: %v : %v", line, err)
 		if err == readline.ErrInterrupt {
@@ -265,6 +260,7 @@ func main() {
 			// Should really be when a command has been validated and executed.
 			liner2.AppendHistory(line)
 		}
+
 		switch {
 		case strings.HasPrefix(line, "set"), strings.HasPrefix(line, "delete"):
 			// TODO this is a big current limitation - can only set/delete a
@@ -282,6 +278,8 @@ func main() {
 			if mods[slice[1]] == nil {
 				mods[slice[1]] = getYangModule(s, slice[1])
 			}
+			netconfData, _ := sendNetconfRequest(s, requestLine, editConf)
+			fmt.Printf("Request data: %v\n", netconfData)
 		case strings.HasPrefix(line, "get-conf"):
 			// TODO make common with get-oper/rpc below using fallthrough
 			requestLine = line
@@ -321,7 +319,7 @@ func main() {
 					continue
 				}
 			}
-			var op int
+			var op requestType
 			switch slice[0] {
 			case "get-oper":
 				op = getOper
@@ -333,8 +331,10 @@ func main() {
 			netconfData, _ := sendNetconfRequest(s, requestLine, op)
 			fmt.Printf("Request data: %v\n", netconfData)
 		case strings.HasPrefix(line, "validate"):
+			requestLine = line
 			sendNetconfRequest(s, requestLine, validate)
 		case strings.HasPrefix(line, "commit"):
+			requestLine = line
 			sendNetconfRequest(s, requestLine, commit)
 		default:
 		}

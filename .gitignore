@@ -20,3 +20,5 @@ pyvxr.log
 netconf-go
 cpu.prof
 netconf-cli.test
+__debug_bin
+.vscode
