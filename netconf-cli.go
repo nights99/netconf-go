@@ -180,15 +180,15 @@ func main() {
 		}
 	} else {
 		sshConfig := &ssh.ClientConfig{
-			User: "cisco",
+			User: user,
 			Auth: []ssh.AuthMethod{
-				ssh.Password("cisco123"),
+				ssh.Password(password),
 			},
 			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		}
 		// s, err = netconf.DialSSH(*addr+":"+strconv.Itoa(*port), sshConfig)
 
-		transport, err := ncssh.Dial(context.Background(), "tcp", *addr+":"+strconv.Itoa(*port), sshConfig)
+		transport, err := ncssh.Dial(context.Background(), "tcp", addr+":"+strconv.Itoa(port), sshConfig)
 		if err != nil {
 			panic(err)
 		}

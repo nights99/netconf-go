@@ -16,7 +16,6 @@ import (
 	"time"
 
 	netconf "github.com/nemith/netconf"
-	"github.com/andreyvit/diff"
 	"github.com/openconfig/goyang/pkg/yang"
 	log "github.com/sirupsen/logrus"
 )
@@ -616,23 +615,22 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType requ
 	ncRequest.store = store
 	store.Insert(yang_module, requestLine)
 
-	var reply *netconf.RPCReply
+	// var reply *netconf.RPCReply
 	var error error
-	if ncRequest != nil {
-		rpc := netconf.NewRPCMessage([]netconf.RPCMethod{ncRequest})
-		xml2, err := xml.MarshalIndent(rpc, "", "  ")
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-		log.Debug(string(xml2))
-		println(string(xml2))
+	// 	rpc := netconf.NewRPCMessage([]netconf.RPCMethod{ncRequest})
+	// 	xml2, err := xml.MarshalIndent(rpc, "", "  ")
+	// 	if err != nil {
+	// 		fmt.Fprintln(os.Stderr, err)
+	// 	}
+	// 	log.Debug(string(xml2))
+	// 	println(string(xml2))
 
-		xml3 := ncRequest.MarshalMethod()
-		myxml := store.Marshal()
-		fmt.Print(diff.LineDiff(string(xml3), string(myxml)))
+	// 	xml3 := ncRequest.MarshalMethod()
+	// 	myxml := store.Marshal()
+	// 	fmt.Print(diff.LineDiff(string(xml3), string(myxml)))
 
-		reply, error = s.Do(context.Background(), &rpc)
-	}
+	rpc := ncRequest
+	reply, error := s.Do(context.Background(), &rpc)
 
 	// log.Debugf("Request reply: %s, error: %v\n", reply, error)
 	var theString string
@@ -650,6 +648,7 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType requ
 		}
 		log.Debugf("Request reply: %v, error: %v, data: %v\n", reply, error, reply.Body)
 		// fmt.Printf("Request data: %v\n", reply.Data)
+	}
 
 	dec := xml.NewDecoder(bytes.NewReader(reply.Body))
 	var tok xml.Token
