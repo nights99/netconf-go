@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"encoding/xml"
 	"fmt"
+
+	// "netconf-go/internal/completions"
 	"netconf-go/internal/xmlstore"
 	"os"
 	"regexp"
@@ -14,6 +16,7 @@ import (
 	"time"
 
 	"github.com/Juniper/go-netconf/netconf"
+	"github.com/andreyvit/diff"
 	"github.com/openconfig/goyang/pkg/yang"
 	log "github.com/sirupsen/logrus"
 )
@@ -58,6 +61,7 @@ type netconfRequest struct {
 	NetConfPath []netconfPathElement
 	Value       string
 	reqType     requestType
+	store       xmlstore.XMLStore
 }
 
 type schemaReply struct {
@@ -83,7 +87,7 @@ type schemaReply struct {
 var ms *yang.Modules
 var mods = map[string]*yang.Module{}
 
-// var modNames []string
+var modNames2 []string
 
 var globalSession *netconf.Session
 
@@ -101,9 +105,9 @@ func listYang(path string) ([]string, int) {
 
 	if len(tokens) >= 2 {
 		// We have a module name; check for partial or incorrect
-		if i := sort.SearchStrings(modNames, tokens[1]); i == len(modNames) || modNames[i] != tokens[1] {
-			log.Debugf("didn't find %s in %v, returning all, 1", tokens[1], len(modNames))
-			return modNames, returnType
+		if i := sort.SearchStrings(modNames2, tokens[1]); i == len(modNames2) || modNames2[i] != tokens[1] {
+			log.Debugf("didn't find %s in %v, returning all, 1", tokens[1], len(modNames2))
+			return modNames2, returnType
 		}
 		if mods[tokens[1]] == nil {
 			mods[tokens[1]] = getYangModule(globalSession, tokens[1])
@@ -111,7 +115,7 @@ func listYang(path string) ([]string, int) {
 		mod := mods[tokens[1]]
 		if mod == nil {
 			log.Debugf("didn't find %s in %v, returning all, 2", tokens[1], len(mods))
-			return modNames, returnType
+			return modNames2, returnType
 		}
 
 		entry := yang.ToEntry(mod)
@@ -323,7 +327,7 @@ func listYang(path string) ([]string, int) {
 		log.Debugf("names: %v\n", names)
 	} else {
 		log.Debug("Returning all modules")
-		names = modNames
+		names = modNames2
 	}
 	return names, returnType
 }
@@ -394,6 +398,7 @@ func (nc *netconfRequest) MarshalMethod() string {
 	var buf bytes.Buffer
 
 	enc := xml.NewEncoder(&buf)
+	enc.Indent("", "  ")
 
 	switch nc.reqType {
 	case commit:
@@ -610,6 +615,10 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType requ
 
 	// fmt.Printf("ncRequest: %v\n", ncRequest)
 
+	// Add to xmlstore
+	ncRequest.store = store
+	store.Insert(yang_module, requestLine)
+
 	var reply *netconf.RPCReply
 	var error error
 	if ncRequest != nil {
@@ -621,10 +630,12 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType requ
 		log.Debug(string(xml2))
 		println(string(xml2))
 
+		xml3 := ncRequest.MarshalMethod()
+		myxml := store.Marshal()
+		fmt.Print(diff.LineDiff(string(xml3), string(myxml)))
+
 		reply, error = s.Exec(ncRequest)
 	}
-	// Add to xmlstore
-	store.Insert(yang_module, requestLine)
 
 	//log.Debugf("Request reply: %v, error: %v\n", reply, error)
 	var theString string
@@ -710,4 +721,8 @@ func getSchemaList(s *netconf.Session) []string {
 func timeTrack(start time.Time, name string) {
 	elapsed := time.Since(start)
 	log.Printf("%s took %s", name, elapsed)
+}
+
+func ListYang(path string) ([]string, int) {
+	return listYang(path)
 }

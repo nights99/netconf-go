@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 
+	// "netconf-go/internal/lib"
+
 	"github.com/Juniper/go-netconf/netconf"
 	"github.com/chzyer/readline"
 	"github.com/openconfig/goyang/pkg/yang"
@@ -20,7 +22,6 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"golang.org/x/crypto/ssh"
-	// "netconf-go/internal/lib"
 )
 
 // Array of available Yang modules
@@ -38,7 +39,7 @@ func wordCompleter(line string, pos2 int) (head string, completions []string, ta
 	log.Debugf("tokens: %d, %v", len(tokens), tokens)
 
 	if len(tokens) >= 2 || strings.HasSuffix(line, " ") {
-		yangCompletions, returnType := listYang(line)
+		yangCompletions, returnType := ListYang(line)
 		// fmt.Printf("Completions %v\n", yangCompletions)
 
 		cs := make([]string, len(yangCompletions))
