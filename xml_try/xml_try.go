@@ -39,6 +39,17 @@ type xmlElement struct {
 	Children []xmlElementInterface
 }
 
+func (el xmlElement) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	start.Name.Local = el.XMLName.Local
+	start.Name.Space = el.XMLName.Space
+	if err := e.EncodeToken(start); err != nil {
+		return err
+	}
+	e.EncodeElement(el.Children, start)
+
+	return e.EncodeToken(start.End())
+}
+
 func (el *xmlElement) insert(path []string) {
 	// ss := strings.Split(path, " ")
 	ss := path
@@ -50,7 +61,7 @@ func (el *xmlElement) insert(path []string) {
 		}
 	} else {
 		// Add new element, then insert into that
-		el.Children = append(el.Children, &xmlElement{xml.Name{Space: "", Local: ss[1]}, "", []xmlElementInterface{}})
+		el.Children = append(el.Children, &xmlElement{xml.Name{Local: ss[1], Space: ""}, "", []xmlElementInterface{}})
 	}
 
 	// for _, s := range strings.Split(path, " ") {
@@ -67,7 +78,7 @@ func main() {
 		},
 	}
 	foo.insert(strings.Split("foo bar2 next_level", " "))
-	foo.Children = append(foo.Children, &idRefElement{xmlElement{xml.Name{Space: "", Local: "next_level"}, "", []xmlElementInterface{}}, "ethernetCsmacd"})
+	foo.Children = append(foo.Children, &idRefElement{xmlElement{xml.Name{Space: "ns2", Local: "next_level2"}, "", []xmlElementInterface{}}, "ethernetCsmacd"})
 	myxml, err := xml.MarshalIndent(foo, "", "  ")
 	fmt.Printf("%v %v\n", string(myxml), err)
 }
