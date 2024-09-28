@@ -628,12 +628,9 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType requ
 	// 	xml3 := ncRequest.MarshalMethod()
 	// 	myxml := store.Marshal()
 	// 	fmt.Print(diff.LineDiff(string(xml3), string(myxml)))
-
-	rpc := ncRequest
-	reply, error := s.Do(context.Background(), &rpc)
-
 	// log.Debugf("Request reply: %s, error: %v\n", reply, error)
 	var theString string
+	var reply *netconf.Reply = nil
 
 	if requestType == commit {
 		error = s.Commit(context.Background())
@@ -642,6 +639,8 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType requ
 		error = s.Validate(context.Background(), netconf.Candidate)
 		log.Debugf("Request reply: %v, error: %v\n", reply, error)
 	} else if requestType == getConf || requestType == getOper {
+		rpc := ncRequest
+		reply, error = s.Do(context.Background(), &rpc)
 		if error != nil {
 			fmt.Printf("Request reply: %v, error: %v\n", reply, error)
 			return "", ""
@@ -650,39 +649,43 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType requ
 		// fmt.Printf("Request data: %v\n", reply.Data)
 	}
 
-	dec := xml.NewDecoder(bytes.NewReader(reply.Body))
-	var tok xml.Token
-	var lastString string
-	var seenFirstEnd bool
-	seenFirstEnd = false
-	for {
-		tok, error = dec.Token()
-		// fmt.Printf("Token: %T %v\n", tok, error)
-		switch v := tok.(type) {
-		case xml.CharData:
-			// fmt.Printf("Token: %v %v\n", string(v), error)
-			lastString = string(v)
-			// theString = lastString
-		case xml.EndElement:
-			if !seenFirstEnd {
-				seenFirstEnd = true
-				theString = lastString
-			}
+	if reply != nil {
+		dec := xml.NewDecoder(bytes.NewReader(reply.Body))
+		var tok xml.Token
+		var lastString string
+		var seenFirstEnd bool
+		seenFirstEnd = false
+		for {
+			tok, error = dec.Token()
+			// fmt.Printf("Token: %T %v\n", tok, error)
+			switch v := tok.(type) {
+			case xml.CharData:
+				// fmt.Printf("Token: %v %v\n", string(v), error)
+				lastString = string(v)
+				// theString = lastString
+			case xml.EndElement:
+				if !seenFirstEnd {
+					seenFirstEnd = true
+					theString = lastString
+				}
 
-		default:
-			// fmt.Printf("Token: %v %v\n", v, error)
+			default:
+				// fmt.Printf("Token: %v %v\n", v, error)
+			}
+			if tok == nil {
+				break
+			}
 		}
-		if tok == nil {
-			break
-		}
+		// TODO Handle bool/presence type items
+		fmt.Println("Data: ", theString)
 	}
-	// TODO Handle bool/presence type items
-	fmt.Println("Data: ", theString)
 
 	if reply != nil {
 		return string(reply.Body), theString
-	} else {
+	} else if error != nil {
 		return error.Error(), ""
+	} else {
+		return "", ""
 	}
 }
 
