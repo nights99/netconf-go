@@ -1,7 +1,6 @@
 module netconf-go
 
 go 1.21
-
 toolchain go1.23.1
 
 require (
@@ -24,7 +23,7 @@ require (
 	github.com/nemith/netconf v0.0.2-0.20240909031326-9e1c7e00bf1a
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.18.2
-	github.com/ziutek/telnet v0.0.0-20180329124119-c3b780dc415b
+	github.com/ziutek/telnet v0.1.0
 )
 
 require (
