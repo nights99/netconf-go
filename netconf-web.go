@@ -1,5 +1,5 @@
-//go:build wasm
-// +build wasm
+//go:build js && wasm
+// +build js,wasm
 
 // GOOS=js GOARCH=wasm go build -o main.wasm
 // ~/go/bin/goexec 'http.ListenAndServe(`:8080`, http.FileServer(http.Dir(`.`)))'
@@ -122,7 +122,7 @@ func jsonWrapper(this js.Value, args []js.Value) interface{} {
 	return promise
 }
 
-func sendNetconfRequest3(resolve *js.Value, req []string, reqType int) {
+func sendNetconfRequest3(resolve *js.Value, req []string, reqType requestType) {
 	netconfData, data := sendNetconfRequest(globalSession, strings.Join(req, " "), reqType)
 	fmt.Printf("sendNetconfRequest3: %v, %v\n", netconfData, data)
 
@@ -138,7 +138,7 @@ func sendNetconfRequest1(this js.Value, args []js.Value) interface{} {
 		slice[i] = args[0].Index(i).String()
 	}
 	slice = append([]string{args[1].String()}, slice...)
-	var reqType int
+	var reqType requestType
 	switch args[1].String() {
 	case "commit":
 		reqType = commit

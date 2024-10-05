@@ -1,26 +1,42 @@
 package main
 
+// package lib
+
 import (
 	"bytes"
+	"context"
 	"encoding/xml"
 	"fmt"
+
+	// "netconf-go/internal/completions"
+	"netconf-go/internal/xmlstore"
 	"os"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/Juniper/go-netconf/netconf"
+	netconf "github.com/nemith/netconf"
 	"github.com/openconfig/goyang/pkg/yang"
 	log "github.com/sirupsen/logrus"
 )
 
+type requestType int
+
 const (
-	validate = 0
-	commit   = 1
-	getConf  = 2
-	getOper  = 3
-	rpcOp    = 5
+	validate requestType = iota
+	commit               = 1
+	getConf              = 2
+	getOper              = 3
+	rpcOp                = 5
+	editConf             = 6
+)
+
+type cfgDatastore int
+
+const (
+	running            cfgDatastore = iota
+	candidate                       = 1
+	runningInheritance              = 2
 )
 
 const (
@@ -43,7 +59,8 @@ type netconfRequest struct {
 	ncEntry     *yang.Entry
 	NetConfPath []netconfPathElement
 	Value       string
-	reqType     int
+	reqType     requestType
+	store       xmlstore.XMLStore
 }
 
 type schemaReply struct {
@@ -67,8 +84,9 @@ type schemaReply struct {
 }
 
 var ms *yang.Modules
-
 var mods = map[string]*yang.Module{}
+
+var modNames2 []string
 
 var globalSession *netconf.Session
 
@@ -86,9 +104,9 @@ func listYang(path string) ([]string, int) {
 
 	if len(tokens) >= 2 {
 		// We have a module name; check for partial or incorrect
-		if i := sort.SearchStrings(modNames, tokens[1]); i == len(modNames) || modNames[i] != tokens[1] {
-			log.Debugf("didn't find %s in %v, returning all, 1", tokens[1], len(modNames))
-			return modNames, returnType
+		if i := sort.SearchStrings(modNames2, tokens[1]); i == len(modNames2) || modNames2[i] != tokens[1] {
+			log.Debugf("didn't find %s in %v, returning all, 1", tokens[1], len(modNames2))
+			return modNames2, returnType
 		}
 		if mods[tokens[1]] == nil {
 			mods[tokens[1]] = getYangModule(globalSession, tokens[1])
@@ -96,7 +114,7 @@ func listYang(path string) ([]string, int) {
 		mod := mods[tokens[1]]
 		if mod == nil {
 			log.Debugf("didn't find %s in %v, returning all, 2", tokens[1], len(mods))
-			return modNames, returnType
+			return modNames2, returnType
 		}
 
 		entry := yang.ToEntry(mod)
@@ -308,12 +326,12 @@ func listYang(path string) ([]string, int) {
 		log.Debugf("names: %v\n", names)
 	} else {
 		log.Debug("Returning all modules")
-		names = modNames
+		names = modNames2
 	}
 	return names, returnType
 }
 
-func newNetconfRequest(netconfEntry *yang.Entry, Path []string, value string, requestType int, delete bool) *netconfRequest {
+func newNetconfRequest(netconfEntry *yang.Entry, Path []string, value string, requestType requestType, delete bool) *netconfRequest {
 	ncArray := make([]netconfPathElement, len(Path))
 	for i, p := range Path {
 		if strings.Contains(p, "=") {
@@ -337,7 +355,7 @@ func newNetconfRequest(netconfEntry *yang.Entry, Path []string, value string, re
 	}
 }
 
-func emitNestedXML(enc *xml.Encoder, paths []netconfPathElement, value string, reqType int) {
+func emitNestedXML(enc *xml.Encoder, paths []netconfPathElement, value string, reqType requestType) {
 	var start3 xml.StartElement
 	if paths[0].delete {
 		start3 = xml.StartElement{
@@ -375,15 +393,16 @@ func emitNestedXML(enc *xml.Encoder, paths []netconfPathElement, value string, r
 	}
 }
 
-func (nc *netconfRequest) MarshalMethod() string {
-	var buf bytes.Buffer
-
-	enc := xml.NewEncoder(&buf)
+func (nc *netconfRequest) MarshalXML(enc *xml.Encoder, start xml.StartElement) error {
 
 	switch nc.reqType {
 	case commit:
-		fallthrough
+		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "commit"}})
 	case validate:
+		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "validate"}})
+		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "source"}})
+		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "candidate"}})
+	case editConf:
 		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "edit-config"}})
 		emitNestedXML(enc, []netconfPathElement{
 			{name: "target", value: nil},
@@ -430,8 +449,12 @@ func (nc *netconfRequest) MarshalMethod() string {
 	}
 	switch nc.reqType {
 	case commit:
-		fallthrough
+		enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "commit"}})
 	case validate:
+		enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "validate"}})
+		enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "source"}})
+		enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "candidate"}})
+	case editConf:
 		err = enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "config", Space: "urn:ietf:params:xml:ns:netconf:base:1.0"}})
 		if err != nil {
 			fmt.Println(err)
@@ -454,7 +477,7 @@ func (nc *netconfRequest) MarshalMethod() string {
 
 	enc.Flush()
 
-	return buf.String()
+	return nil
 }
 
 func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
@@ -462,24 +485,25 @@ func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
 	 * Get the yang module from XR and read it into the map
 	 */
 	log.Debug("Getting: ", yangMod)
-	reply, error := s.Exec(netconf.RawMethod(`<get-schema
+	reply, error := s.Do(context.Background(),
+		`<get-schema
 		 xmlns="urn:ietf:params:xml:ns:yang:ietf-netconf-monitoring">
-	 <identifier>` +
-		yangMod +
-		`</identifier>
+	 <identifier>`+
+			yangMod+
+			`</identifier>
 		 </get-schema>
-	 `))
+	 `)
 	if error != nil {
 		fmt.Printf("Request reply error1: %v\n", error)
 		return nil
 	}
 	// log.Debugf("Request reply: %v, error: %v\n", reply.Data, error)
-	re, _ := regexp.Compile("\n#[0-9]+\n")
+	// re, _ := regexp.Compile("\n#[0-9]+\n")
 	// strs := re.FindAllStringSubmatch(reply.Data, 10)
 	// fmt.Printf("%v\n", strs)
-	reply.Data = re.ReplaceAllLiteralString(reply.Data, "")
+	// reply.Data = re.ReplaceAllLiteralString(reply.Data, "")
 	yangReply := yangReply{}
-	_ = xml.Unmarshal([]byte(reply.Data), &yangReply)
+	_ = xml.Unmarshal([]byte(reply.Body), &yangReply)
 	//fmt.Printf("Request reply: %v, error: %v\n", yangReply, err)
 	err := ms.Parse(yangReply.Rest, yangMod)
 	if err != nil {
@@ -553,10 +577,13 @@ func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
 
 	return mod
 }
-func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int) (string, string) {
+func sendNetconfRequest(s *netconf.Session, requestLine string, requestType requestType) (string, string) {
+	var store xmlstore.XMLStore
+
 	defer timeTrack(time.Now(), "Request")
 
 	slice := strings.Split(requestLine, " ")
+	yang_module := yang.ToEntry(mods[slice[1]])
 
 	// Create a request structure with module, path array, and string value.
 	var ncRequest *netconfRequest
@@ -564,6 +591,8 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 	case commit:
 		fallthrough
 	case validate:
+		ncRequest = newNetconfRequest(nil, nil, "", requestType, false)
+	case editConf:
 		if slice[0] == "delete" {
 			ncRequest = newNetconfRequest(yang.ToEntry(mods[slice[1]]), slice[2:], "", requestType, true)
 		} else {
@@ -580,35 +609,48 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 		panic("Bad request type")
 	}
 
-	//fmt.Printf("ncRequest: %v\n", ncRequest)
+	//  fmt.Printf("ncRequest: %v\n", ncRequest)
 
-	rpc := netconf.NewRPCMessage([]netconf.RPCMethod{ncRequest})
-	xml2, err := xml.MarshalIndent(rpc, "", "  ")
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-	}
-	log.Debug(string(xml2))
+	// Add to xmlstore
+	ncRequest.store = store
+	store.Insert(yang_module, requestLine)
 
-	reply, error := s.Exec(ncRequest)
+	// var reply *netconf.RPCReply
+	var error error
+	// 	rpc := netconf.NewRPCMessage([]netconf.RPCMethod{ncRequest})
+	// 	xml2, err := xml.MarshalIndent(rpc, "", "  ")
+	// 	if err != nil {
+	// 		fmt.Fprintln(os.Stderr, err)
+	// 	}
+	// 	log.Debug(string(xml2))
+	// 	println(string(xml2))
 
-	//log.Debugf("Request reply: %v, error: %v\n", reply, error)
+	// 	xml3 := ncRequest.MarshalMethod()
+	// 	myxml := store.Marshal()
+	// 	fmt.Print(diff.LineDiff(string(xml3), string(myxml)))
+	// log.Debugf("Request reply: %s, error: %v\n", reply, error)
 	var theString string
+	var reply *netconf.Reply = nil
 
 	if requestType == commit {
-		reply, error = s.Exec(netconf.RawMethod("<commit></commit>"))
+		error = s.Commit(context.Background())
 		log.Debugf("Request reply: %v, error: %v\n", reply, error)
 	} else if requestType == validate {
-		reply, error = s.Exec(netconf.RawMethod("<validate><source><candidate/></source></validate>"))
+		error = s.Validate(context.Background(), netconf.Candidate)
 		log.Debugf("Request reply: %v, error: %v\n", reply, error)
 	} else if requestType == getConf || requestType == getOper {
+		rpc := ncRequest
+		reply, error = s.Do(context.Background(), &rpc)
 		if error != nil {
 			fmt.Printf("Request reply: %v, error: %v\n", reply, error)
 			return "", ""
 		}
-		log.Debugf("Request reply: %v, error: %v, data: %v\n", reply, error, reply.Data)
+		log.Debugf("Request reply: %v, error: %v, data: %v\n", reply, error, reply.Body)
 		// fmt.Printf("Request data: %v\n", reply.Data)
+	}
 
-		dec := xml.NewDecoder(strings.NewReader(reply.Data))
+	if reply != nil {
+		dec := xml.NewDecoder(bytes.NewReader(reply.Body))
 		var tok xml.Token
 		var lastString string
 		var seenFirstEnd bool
@@ -636,12 +678,14 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType int)
 		}
 		// TODO Handle bool/presence type items
 		fmt.Println("Data: ", theString)
-
 	}
+
 	if reply != nil {
-		return reply.Data, theString
-	} else {
+		return string(reply.Body), theString
+	} else if error != nil {
 		return error.Error(), ""
+	} else {
+		return "", ""
 	}
 }
 
@@ -649,13 +693,13 @@ func getSchemaList(s *netconf.Session) []string {
 	/*
 	 * Get a list of schemas
 	 */
-	reply, error := s.Exec(netconf.RawMethod(`<get>
+	reply, error := s.Do(context.Background(), `<get>
     <filter type="subtree">
       <netconf-state xmlns="urn:ietf:params:xml:ns:yang:ietf-netconf-monitoring">
         <schemas/>
       </netconf-state>
     </filter>
-    </get>`))
+    </get>`)
 	if error != nil {
 		fmt.Printf("Request reply error2: %v\n", error)
 		// panic(error)
@@ -663,7 +707,7 @@ func getSchemaList(s *netconf.Session) []string {
 	}
 	// fmt.Printf("Request reply: %v, error: %v\n", reply.Data[0:1000], error)
 	schemaReply := schemaReply{}
-	error = xml.Unmarshal([]byte(reply.Data), &schemaReply)
+	error = xml.Unmarshal([]byte(reply.Body), &schemaReply)
 	//fmt.Printf("Request reply: %v, error: %v\n", schemaReply.Rest.Rest.Schemas[0], err)
 	//fmt.Printf("Request reply: %v, error: %v\n", schemaReply.Rest.Rest.Schemas[99].Identifier, err)
 	if error != nil {
@@ -683,4 +727,8 @@ func getSchemaList(s *netconf.Session) []string {
 func timeTrack(start time.Time, name string) {
 	elapsed := time.Since(start)
 	log.Printf("%s took %s", name, elapsed)
+}
+
+func ListYang(path string) ([]string, int) {
+	return listYang(path)
 }
