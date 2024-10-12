@@ -97,7 +97,9 @@ func (store *XMLStore) Insert(yangMod *yang.Entry, line string) {
 	// Insert into store
 	store.Root.XMLName.Local = ss[1]
 	store.Root.XMLName.Space = yangMod.Namespace().Name
-	store.Root.insert(yangMod, ss[2:])
+	if len(ss) > 2 {
+		store.Root.insert(yangMod, ss[2:])
+	}
 	// fmt.Printf("%v\n", store)
 	// myxml, err := xml.MarshalIndent(store.Root, "", "  ")
 	// fmt.Printf("%v %v\n", string(myxml), err)

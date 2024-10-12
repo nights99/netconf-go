@@ -60,7 +60,7 @@ type netconfRequest struct {
 	NetConfPath []netconfPathElement
 	Value       string
 	reqType     requestType
-	store       xmlstore.XMLStore
+	store       *xmlstore.XMLStore
 }
 
 type schemaReply struct {
@@ -583,7 +583,10 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType requ
 	defer timeTrack(time.Now(), "Request")
 
 	slice := strings.Split(requestLine, " ")
-	yang_module := yang.ToEntry(mods[slice[1]])
+	var yang_module *yang.Entry
+	if len(slice) > 1 {
+		yang_module = yang.ToEntry(mods[slice[1]])
+	}
 
 	// Create a request structure with module, path array, and string value.
 	var ncRequest *netconfRequest
@@ -612,8 +615,10 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType requ
 	//  fmt.Printf("ncRequest: %v\n", ncRequest)
 
 	// Add to xmlstore
-	ncRequest.store = store
-	store.Insert(yang_module, requestLine)
+	if len(slice) > 1 {
+		store.Insert(yang_module, requestLine)
+	}
+	ncRequest.store = &store
 
 	// var reply *netconf.RPCReply
 	var error error
@@ -721,6 +726,7 @@ func getSchemaList(s *netconf.Session) []string {
 	}
 
 	sort.Strings(schStrings)
+	modNames2 = schStrings
 	return schStrings
 }
 

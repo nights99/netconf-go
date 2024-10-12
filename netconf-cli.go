@@ -239,6 +239,7 @@ func main() {
 	if testMode {
 		return
 	}
+	getYangModule(s, "iana-if-type")
 	for {
 		// Maps string to void
 		// Becomes a nested map of strings
