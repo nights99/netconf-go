@@ -50,7 +50,11 @@ func (el xmlElement) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	if err := e.EncodeToken(start); err != nil {
 		return err
 	}
-	e.EncodeElement(el.Children, start)
+	if el.Value != "" {
+		e.EncodeToken(xml.CharData(el.Value))
+	} else {
+		e.EncodeElement(el.Children, start)
+	}
 
 	return e.EncodeToken(start.End())
 }
@@ -66,8 +70,12 @@ func (el *xmlElement) insert(yangMod *yang.Entry, path []string) {
 	} else {
 		// Add new element, then insert into that
 		// fmt.Printf("Adding %v to x%vx\n", ss[0], el.XMLName.Local)
+		nv := strings.Split(ss[0], "=")
 		if el.XMLName.Local == "" {
-			el.XMLName.Local = ss[0]
+			el.XMLName.Local = nv[0]
+			if len(nv) > 1 {
+				el.Value = nv[1]
+			}
 			el.XMLName.Space = yangMod.Namespace().Name
 			el.Children = append(el.Children, &xmlElement{xml.Name{Space: "", Local: ss[1]}, "", []xmlElementInterface{}})
 			if len(ss) == 2 {
@@ -75,11 +83,15 @@ func (el *xmlElement) insert(yangMod *yang.Entry, path []string) {
 			}
 			el.Children[len(el.Children)-1].insert(nil, ss[2:])
 		} else {
-			el.Children = append(el.Children, &xmlElement{xml.Name{
-				Local: ss[0],
+			child := xmlElement{xml.Name{
+				Local: nv[0],
 				// Space: el.XMLName.Space
-			},
-				"", []xmlElementInterface{}})
+			}, "", []xmlElementInterface{}}
+			if len(nv) > 1 {
+				child.Value = nv[1]
+			}
+
+			el.Children = append(el.Children, &child)
 			if len(ss) == 1 {
 				return
 			}

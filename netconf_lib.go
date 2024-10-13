@@ -497,6 +497,10 @@ func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
 		fmt.Printf("Request reply error1: %v\n", error)
 		return nil
 	}
+	if reply.Errors != nil && len(reply.Errors) > 0 {
+		fmt.Printf("Request reply error1: %v\n", reply.Errors[0])
+		return nil
+	}
 	// log.Debugf("Request reply: %v, error: %v\n", reply.Data, error)
 	// re, _ := regexp.Compile("\n#[0-9]+\n")
 	// strs := re.FindAllStringSubmatch(reply.Data, 10)
@@ -643,7 +647,8 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType requ
 	} else if requestType == validate {
 		error = s.Validate(context.Background(), netconf.Candidate)
 		log.Debugf("Request reply: %v, error: %v\n", reply, error)
-	} else if requestType == getConf || requestType == getOper {
+		// } else if requestType == getConf || requestType == getOper {
+	} else {
 		rpc := ncRequest
 		reply, error = s.Do(context.Background(), &rpc)
 		if error != nil {
