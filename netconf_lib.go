@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	// "netconf-go/internal/completions"
+	"netconf-go/internal/types"
 	"netconf-go/internal/xmlstore"
 	"os"
 	"sort"
@@ -18,17 +19,6 @@ import (
 	netconf "github.com/nemith/netconf"
 	"github.com/openconfig/goyang/pkg/yang"
 	log "github.com/sirupsen/logrus"
-)
-
-type requestType int
-
-const (
-	validate requestType = iota
-	commit               = 1
-	getConf              = 2
-	getOper              = 3
-	rpcOp                = 5
-	editConf             = 6
 )
 
 type cfgDatastore int
@@ -59,7 +49,7 @@ type netconfRequest struct {
 	ncEntry     *yang.Entry
 	NetConfPath []netconfPathElement
 	Value       string
-	reqType     requestType
+	reqType     types.RequestType
 	store       *xmlstore.XMLStore
 }
 
@@ -331,7 +321,7 @@ func listYang(path string) ([]string, int) {
 	return names, returnType
 }
 
-func newNetconfRequest(netconfEntry *yang.Entry, Path []string, value string, requestType requestType, delete bool) *netconfRequest {
+func newNetconfRequest(netconfEntry *yang.Entry, Path []string, value string, requestType types.RequestType, delete bool) *netconfRequest {
 	ncArray := make([]netconfPathElement, len(Path))
 	for i, p := range Path {
 		if strings.Contains(p, "=") {
@@ -355,7 +345,7 @@ func newNetconfRequest(netconfEntry *yang.Entry, Path []string, value string, re
 	}
 }
 
-func emitNestedXML(enc *xml.Encoder, paths []netconfPathElement, value string, reqType requestType) {
+func emitNestedXML(enc *xml.Encoder, paths []netconfPathElement, value string, reqType types.RequestType) {
 	var start3 xml.StartElement
 	if paths[0].delete {
 		start3 = xml.StartElement{
@@ -396,13 +386,13 @@ func emitNestedXML(enc *xml.Encoder, paths []netconfPathElement, value string, r
 func (nc *netconfRequest) MarshalXML(enc *xml.Encoder, start xml.StartElement) error {
 
 	switch nc.reqType {
-	case commit:
+	case types.Commit:
 		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "commit"}})
-	case validate:
+	case types.Validate:
 		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "validate"}})
 		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "source"}})
 		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "candidate"}})
-	case editConf:
+	case types.EditConf:
 		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "edit-config"}})
 		emitNestedXML(enc, []netconfPathElement{
 			{name: "target", value: nil},
@@ -411,7 +401,7 @@ func (nc *netconfRequest) MarshalXML(enc *xml.Encoder, start xml.StartElement) e
 			nc.reqType)
 		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "config", Space: "urn:ietf:params:xml:ns:netconf:base:1.0"}})
 
-	case getConf:
+	case types.GetConf:
 		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "get-config"}})
 		emitNestedXML(enc, []netconfPathElement{
 			{name: "source", value: nil},
@@ -422,39 +412,39 @@ func (nc *netconfRequest) MarshalXML(enc *xml.Encoder, start xml.StartElement) e
 		if nc.ncEntry != nil {
 			enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "filter"}})
 		}
-	case getOper:
+	case types.GetOper:
 		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "get"}})
 		enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "filter"}, Attr: []xml.Attr{{Name: xml.Name{Local: "type"}, Value: "subtree"}}})
-	case rpcOp:
+	case types.RpcOp:
 		// enc.EncodeToken(xml.StartElement{Name: xml.Name{Local: "rpc"}})
 	}
 
 	var err error
 	if nc.ncEntry != nil {
-		start2 := xml.StartElement{Name: xml.Name{Local: nc.NetConfPath[0].name, Space: nc.ncEntry.Namespace().Name}}
+		// start2 := xml.StartElement{Name: xml.Name{Local: nc.NetConfPath[0].name, Space: nc.ncEntry.Namespace().Name}}
 		//fmt.Println(start2)
-		err = enc.EncodeToken(start2)
+		// err = enc.EncodeToken(start2)
 		if err != nil {
 			fmt.Println(err)
 		}
 
-		if len(nc.NetConfPath) > 1 {
-			emitNestedXML(enc, nc.NetConfPath[1:], nc.Value, nc.reqType)
-		}
+		// @@@ To reinstate old, also uncomment 'start2 above and below
+		// emitNestedXML(enc, nc.NetConfPath[1:], nc.Value, nc.reqType)
+		enc.Encode(nc.store.Root)
 
-		err = enc.EncodeToken(start2.End())
+		// err = enc.EncodeToken(start2.End())
 		if err != nil {
 			fmt.Println(err)
 		}
 	}
 	switch nc.reqType {
-	case commit:
+	case types.Commit:
 		enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "commit"}})
-	case validate:
+	case types.Validate:
 		enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "validate"}})
 		enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "source"}})
 		enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "candidate"}})
-	case editConf:
+	case types.EditConf:
 		err = enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "config", Space: "urn:ietf:params:xml:ns:netconf:base:1.0"}})
 		if err != nil {
 			fmt.Println(err)
@@ -463,15 +453,15 @@ func (nc *netconfRequest) MarshalXML(enc *xml.Encoder, start xml.StartElement) e
 		if err != nil {
 			fmt.Println(err)
 		}
-	case getConf:
+	case types.GetConf:
 		if nc.ncEntry != nil {
 			enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "filter"}})
 		}
 		enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "get-config"}})
-	case getOper:
+	case types.GetOper:
 		enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "filter"}})
 		enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "get"}})
-	case rpcOp:
+	case types.RpcOp:
 		// enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: "rpc"}})
 	}
 
@@ -581,7 +571,7 @@ func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
 
 	return mod
 }
-func sendNetconfRequest(s *netconf.Session, requestLine string, requestType requestType) (string, string) {
+func sendNetconfRequest(s *netconf.Session, requestLine string, requestType types.RequestType) (string, string) {
 	var store xmlstore.XMLStore
 
 	defer timeTrack(time.Now(), "Request")
@@ -595,20 +585,20 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType requ
 	// Create a request structure with module, path array, and string value.
 	var ncRequest *netconfRequest
 	switch requestType {
-	case commit:
+	case types.Commit:
 		fallthrough
-	case validate:
+	case types.Validate:
 		ncRequest = newNetconfRequest(nil, nil, "", requestType, false)
-	case editConf:
+	case types.EditConf:
 		if slice[0] == "delete" {
 			ncRequest = newNetconfRequest(yang.ToEntry(mods[slice[1]]), slice[2:], "", requestType, true)
 		} else {
 			ncRequest = newNetconfRequest(yang.ToEntry(mods[slice[1]]), slice[2:len(slice)-1], slice[len(slice)-1], requestType, false)
 		}
-	case getOper, getConf, rpcOp:
+	case types.GetOper, types.GetConf, types.RpcOp:
 		if len(slice) >= 3 {
 			ncRequest = newNetconfRequest(yang.ToEntry(mods[slice[1]]), slice[2:], "", requestType, false)
-		} else if requestType == getConf {
+		} else if requestType == types.GetConf {
 			// getConf supports getting the whole config.
 			ncRequest = newNetconfRequest(nil, []string{}, "", requestType, false)
 		}
@@ -620,7 +610,7 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType requ
 
 	// Add to xmlstore
 	if len(slice) > 1 {
-		store.Insert(yang_module, requestLine)
+		store.Insert(yang_module, requestLine, requestType)
 	}
 	ncRequest.store = &store
 
@@ -641,10 +631,10 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType requ
 	var theString string
 	var reply *netconf.Reply = nil
 
-	if requestType == commit {
+	if requestType == types.Commit {
 		error = s.Commit(context.Background())
 		log.Debugf("Request reply: %v, error: %v\n", reply, error)
-	} else if requestType == validate {
+	} else if requestType == types.Validate {
 		error = s.Validate(context.Background(), netconf.Candidate)
 		log.Debugf("Request reply: %v, error: %v\n", reply, error)
 		// } else if requestType == getConf || requestType == getOper {

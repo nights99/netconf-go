@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/xml"
+	"netconf-go/internal/types"
 	"strings"
 
 	"github.com/nemith/netconf"
@@ -49,7 +50,7 @@ func GetInterfaces(s *netconf.Session) []string {
 	if mods[slice[1]] == nil {
 		mods[slice[1]] = getYangModule(s, slice[1])
 	}
-	data, _ := sendNetconfRequest(s, requestLine, getOper)
+	data, _ := sendNetconfRequest(s, requestLine, types.GetOper)
 	yangReply := intfReply{}
 	err := xml.Unmarshal([]byte(data), &yangReply)
 	if err != nil {
@@ -120,7 +121,7 @@ func GetNodes(s *netconf.Session) []string {
 	if mods[slice[1]] == nil {
 		mods[slice[1]] = getYangModule(s, slice[1])
 	}
-	data, _ := sendNetconfRequest(s, requestLine, getOper)
+	data, _ := sendNetconfRequest(s, requestLine, types.GetOper)
 	yangReply := nodesReply{}
 	err := xml.Unmarshal([]byte(data), &yangReply)
 	if err != nil {

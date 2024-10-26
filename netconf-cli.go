@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"netconf-go/internal/types"
 	"os"
 	"path/filepath"
 	"sort"
@@ -279,7 +280,7 @@ func main() {
 			if mods[slice[1]] == nil {
 				mods[slice[1]] = getYangModule(s, slice[1])
 			}
-			netconfData, _ := sendNetconfRequest(s, requestLine, editConf)
+			netconfData, _ := sendNetconfRequest(s, requestLine, types.EditConf)
 			fmt.Printf("Request data: %v\n", netconfData)
 		case strings.HasPrefix(line, "get-conf"):
 			// TODO make common with get-oper/rpc below using fallthrough
@@ -296,7 +297,7 @@ func main() {
 					continue
 				}
 			}
-			netconfData, _ := sendNetconfRequest(s, requestLine, getConf)
+			netconfData, _ := sendNetconfRequest(s, requestLine, types.GetConf)
 			fmt.Printf("Request data: %v\n", netconfData)
 		case strings.HasPrefix(line, "get-oper"), strings.HasPrefix(line, "rpc"):
 			// TODO make common with set
@@ -320,23 +321,23 @@ func main() {
 					continue
 				}
 			}
-			var op requestType
+			var op types.RequestType
 			switch slice[0] {
 			case "get-oper":
-				op = getOper
+				op = types.GetOper
 			case "rpc":
-				op = rpcOp
+				op = types.RpcOp
 			case "get-conf":
-				op = getConf
+				op = types.GetConf
 			}
 			netconfData, _ := sendNetconfRequest(s, requestLine, op)
 			fmt.Printf("Request data: %v\n", netconfData)
 		case strings.HasPrefix(line, "validate"):
 			requestLine = line
-			sendNetconfRequest(s, requestLine, validate)
+			sendNetconfRequest(s, requestLine, types.Validate)
 		case strings.HasPrefix(line, "commit"):
 			requestLine = line
-			sendNetconfRequest(s, requestLine, commit)
+			sendNetconfRequest(s, requestLine, types.Commit)
 		default:
 		}
 		log.Debug("you said:", strconv.Quote(line))
