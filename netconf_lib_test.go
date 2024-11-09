@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/xml"
+	"netconf-go/internal/types"
 	"reflect"
 	"testing"
 
@@ -38,7 +39,7 @@ func Test_newNetconfRequest(t *testing.T) {
 		netconfEntry yang.Entry
 		Path         []string
 		value        string
-		requestType  RequestType
+		requestType  types.RequestType
 		delete       bool
 	}
 	tests := []struct {
@@ -62,7 +63,7 @@ func Test_emitNestedXML(t *testing.T) {
 		enc     *xml.Encoder
 		paths   []netconfPathElement
 		value   string
-		reqType RequestType
+		reqType types.RequestType
 	}
 	tests := []struct {
 		name string
@@ -82,7 +83,7 @@ func Test_netconfRequest_MarshalMethod(t *testing.T) {
 		ncEntry     yang.Entry
 		NetConfPath []netconfPathElement
 		Value       string
-		reqType     RequestType
+		reqType     types.RequestType
 	}
 	tests := []struct {
 		name   string
@@ -131,7 +132,7 @@ func Test_sendNetconfRequest(t *testing.T) {
 	type args struct {
 		s           *netconf.Session
 		requestLine string
-		requestType RequestType
+		requestType types.RequestType
 	}
 	tests := []struct {
 		name  string

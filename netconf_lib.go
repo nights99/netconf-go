@@ -683,6 +683,7 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType type
 	if reply != nil {
 		return string(reply.Body), theString
 	} else if error != nil {
+		fmt.Printf("Error: %v\n", error.Error())
 		return error.Error(), ""
 	} else {
 		return "", ""
