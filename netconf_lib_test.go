@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/Juniper/go-netconf/netconf"
+	netconf "github.com/nemith/netconf"
 	"github.com/openconfig/goyang/pkg/yang"
 )
 
@@ -100,7 +100,7 @@ func Test_netconfRequest_MarshalMethod(t *testing.T) {
 				Value:       tt.fields.Value,
 				reqType:     tt.fields.reqType,
 			}
-			if got := nc.MarshalMethod(); got != tt.want {
+			if got, _ := xml.MarshalIndent(nc, "", "  "); string(got) != tt.want {
 				t.Errorf("netconfRequest.MarshalMethod() = %v, want %v", got, tt.want)
 			}
 		})

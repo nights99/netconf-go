@@ -73,7 +73,7 @@ type schemaReply struct {
 	} `xml:"netconf-state"`
 }
 
-var ms *yang.Modules
+var ms *yang.Modules = yang.NewModules()
 var mods = map[string]*yang.Module{}
 
 var modNames2 []string
@@ -579,6 +579,15 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType type
 	slice := strings.Split(requestLine, " ")
 	var yang_module *yang.Entry
 	if len(slice) > 1 {
+		/*
+		 * If we don't know the module, read it from the router now.
+		 */
+		if mods[slice[1]] == nil {
+			mods[slice[1]] = getYangModule(s, slice[1])
+			if mods[slice[1]] == nil {
+				return "Couldn't get yang module", ""
+			}
+		}
 		yang_module = yang.ToEntry(mods[slice[1]])
 	}
 

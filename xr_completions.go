@@ -44,12 +44,6 @@ func GetInterfaces(s *netconf.Session) []string {
 	// requestMap = expand(requestMap, slice[1:])
 	// log.Debugf("expand: %v\n", requestMap)
 
-	/*
-	* If we don't know the module, read it from the router now.
-	 */
-	if mods[slice[1]] == nil {
-		mods[slice[1]] = getYangModule(s, slice[1])
-	}
 	data, _ := sendNetconfRequest(s, requestLine, types.GetOper)
 	yangReply := intfReply{}
 	err := xml.Unmarshal([]byte(data), &yangReply)
@@ -110,17 +104,7 @@ type nodesReply struct {
 func GetNodes(s *netconf.Session) []string {
 	// TODO make common with set
 	requestLine := "get-oper Cisco-IOS-XR-platform-oper platform racks rack rack-name=0"
-	slice := strings.Split(requestLine, " ")
 
-	// requestMap := make(map[string]interface{})
-	// requestMap = expand(requestMap, slice[1:])
-
-	/*
-	* If we don't know the module, read it from the router now.
-	 */
-	if mods[slice[1]] == nil {
-		mods[slice[1]] = getYangModule(s, slice[1])
-	}
 	data, _ := sendNetconfRequest(s, requestLine, types.GetOper)
 	yangReply := nodesReply{}
 	err := xml.Unmarshal([]byte(data), &yangReply)
@@ -130,7 +114,6 @@ func GetNodes(s *netconf.Session) []string {
 	slots := make([]string, len(yangReply.Platform.Racks.Rack[0].Slots.Slot))
 	var n int = 0
 	for _, slot := range yangReply.Platform.Racks.Rack[0].Slots.Slot {
-		// intfs = append(intfs, i.Name)
 		if len(slot.Instances.Instance) > 0 {
 			slots[n] = slot.Instances.Instance[0].State.NodeName
 			n++

@@ -23,7 +23,6 @@ import (
 	// ncssh "github.com/nemith/go-netconf/v2/transport/ssh"
 	netconf "github.com/nemith/netconf"
 	ncssh "github.com/nemith/netconf/transport/ssh"
-	"github.com/openconfig/goyang/pkg/yang"
 	"github.com/peterh/liner"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
@@ -123,7 +122,7 @@ func main() {
 	// Read config file using Viper
 	viper.SetConfigName("hosts")
 	viper.AddConfigPath(".")
-	if err := viper.ReadInConfig(); err != nil {
+	if err = viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			// Config file not found; ignore error if desired
 		} else {
@@ -201,9 +200,6 @@ func main() {
 		}
 	}
 
-	if err != nil {
-		panic(err)
-	}
 	globalSession = s
 
 	if !testMode {
@@ -212,8 +208,6 @@ func main() {
 
 	// fmt.Printf("Server Capabilities: '%+v'\n", s.ServerCapabilities[0])
 	// fmt.Printf("Session Id: %d\n\n", s.SessionID)
-
-	ms = yang.NewModules()
 
 	modNames = getSchemaList(s)
 	//fmt.Printf("modNames: %v\n", modNames)
@@ -271,15 +265,6 @@ func main() {
 			slice := strings.Split(requestLine, " ")
 			log.Debug("Set line:", slice[1:])
 
-			// requestMap = expand(requestMap, slice[1:])
-			// log.Debugf("expand: %v\n", requestMap)
-
-			/*
-			 * If we don't know the module, read it from the router now.
-			 */
-			if mods[slice[1]] == nil {
-				mods[slice[1]] = getYangModule(s, slice[1])
-			}
 			netconfData, _ := sendNetconfRequest(s, requestLine, types.EditConf)
 			fmt.Printf("Request data: %v\n", netconfData)
 		case strings.HasPrefix(line, "get-conf"):
@@ -288,15 +273,6 @@ func main() {
 			slice := strings.Split(requestLine, " ")
 			log.Debug("Set line:", slice[1:])
 
-			/*
-			 * If we don't know the module, read it from the router now.
-			 */
-			if len(slice) >= 2 && mods[slice[1]] == nil {
-				mods[slice[1]] = getYangModule(s, slice[1])
-				if mods[slice[1]] == nil {
-					continue
-				}
-			}
 			netconfData, _ := sendNetconfRequest(s, requestLine, types.GetConf)
 			fmt.Printf("Request data: %v\n", netconfData)
 		case strings.HasPrefix(line, "get-oper"), strings.HasPrefix(line, "rpc"):
@@ -309,18 +285,6 @@ func main() {
 				continue
 			}
 
-			// requestMap = expand(requestMap, slice[1:])
-			// log.Debugf("expand: %v\n", requestMap)
-
-			/*
-			 * If we don't know the module, read it from the router now.
-			 */
-			if mods[slice[1]] == nil {
-				mods[slice[1]] = getYangModule(s, slice[1])
-				if mods[slice[1]] == nil {
-					continue
-				}
-			}
 			var op types.RequestType
 			switch slice[0] {
 			case "get-oper":

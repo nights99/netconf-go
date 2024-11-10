@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	netconf "github.com/nemith/netconf"
-	"github.com/openconfig/goyang/pkg/yang"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,7 +17,6 @@ var modNames []string
 
 func TestWS(t *testing.T) {
 	// log.SetLevel(log.DebugLevel)
-	ms = yang.NewModules()
 	var s *netconf.Session
 	var err error
 	assert.NotPanics(t, func() { s, err = DialWebSocket("localhost", 12345) })
