@@ -44,6 +44,7 @@ type xmlElement struct {
 	Value    string `xml:",chardata"`
 	Children []xmlElementInterface
 	delete   bool
+	idref    *string
 }
 
 func (el xmlElement) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
@@ -52,11 +53,20 @@ func (el xmlElement) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	if el.delete {
 		start.Attr = append(start.Attr, xml.Attr{Name: xml.Name{Local: "operation", Space: "urn:ietf:params:xml:ns:netconf:base:1.0"}, Value: "remove"})
 	}
+	if el.idref != nil {
+		// "urn:ietf:params:xml:ns:yang:iana-if-type"
+		start.Attr = append(start.Attr, xml.Attr{Name: xml.Name{Space: "", Local: "xmlns:idx"}, Value: *el.idref})
+	}
+
 	if err := e.EncodeToken(start); err != nil {
 		return err
 	}
 	if el.Value != "" {
-		e.EncodeToken(xml.CharData(el.Value))
+		if el.idref != nil {
+			e.EncodeToken(xml.CharData("idx:" + el.Value))
+		} else {
+			e.EncodeToken(xml.CharData(el.Value))
+		}
 	} else {
 		e.EncodeElement(el.Children, start)
 	}
@@ -64,6 +74,7 @@ func (el xmlElement) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	return e.EncodeToken(start.End())
 }
 func (el *xmlElement) insert(yangMod *yang.Entry, path []string, requestType types.RequestType, delete bool) {
+	var done bool = false
 	// ss := strings.Split(path, " ")
 	ss := path
 	if ss[0] == el.XMLName.Local {
@@ -82,7 +93,7 @@ func (el *xmlElement) insert(yangMod *yang.Entry, path []string, requestType typ
 				el.Value = nv[1]
 			}
 			el.XMLName.Space = yangMod.Namespace().Name
-			el.Children = append(el.Children, &xmlElement{xml.Name{Space: "", Local: ss[1]}, "", []xmlElementInterface{}, false})
+			el.Children = append(el.Children, &xmlElement{xml.Name{Space: "", Local: ss[1]}, "", []xmlElementInterface{}, false, nil})
 			if len(ss) == 2 {
 				return
 			}
@@ -91,20 +102,27 @@ func (el *xmlElement) insert(yangMod *yang.Entry, path []string, requestType typ
 			child := xmlElement{xml.Name{
 				Local: nv[0],
 				// Space: el.XMLName.Space
-			}, "", []xmlElementInterface{}, false}
+			}, "", []xmlElementInterface{}, false, nil}
 			if len(nv) > 1 {
 				child.Value = nv[1]
 			}
 			if len(path) == 1 && requestType == types.EditConf && delete {
 				child.delete = true
 			}
-			// If its a set, the last path element is the value.
-			if len(path) == 1 && requestType == types.EditConf && !delete {
+			if len(path) == 2 && requestType == types.EditConf && !delete && strings.Contains(path[1], "@") {
+				// Set idref to be the part before the @
+				idref := strings.Split(path[1], "@")[0]
+				child.idref = &idref
+				child.Value = strings.Split(path[1], "@")[1]
+				el.Children = append(el.Children, &child)
+				done = true
+			} else if len(path) == 1 && requestType == types.EditConf && !delete {
+				// If its a set, the last path element is the value.
 				el.Value = path[0]
 			} else {
 				el.Children = append(el.Children, &child)
 			}
-			if len(ss) == 1 {
+			if len(ss) == 1 || done {
 				return
 			}
 			if len(nv) > 1 {

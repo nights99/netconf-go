@@ -282,6 +282,11 @@ func listYang(path string) ([]string, int) {
 			fmt.Printf("Enter RPC input: %s\n", entry.Description)
 			names = append(names, entry.Name+"=")
 			returnType = replaceLast
+		} else if entry.Type.Kind == yang.Yidentityref {
+			for _, s := range entry.Type.IdentityBase.Values {
+				// names = append(names, s.Name)
+				names = append(names, s.Parent.(*yang.Module).Namespace.Name+"@"+s.Name)
+			}
 		}
 		for _, s := range mod.Augment {
 			log.Debugln("Mod augment: ", s.Name)
