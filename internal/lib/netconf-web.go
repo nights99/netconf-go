@@ -5,7 +5,7 @@
 // ~/go/bin/goexec 'http.ListenAndServe(`:8080`, http.FileServer(http.Dir(`.`)))'
 // cp main.wasm xxx
 
-package main
+package lib
 
 import (
 	"encoding/json"
@@ -14,6 +14,7 @@ import (
 	"sync"
 	"syscall/js"
 
+	"netconf-go/internal/transports"
 	"netconf-go/internal/types"
 
 	"github.com/openconfig/goyang/pkg/yang"
@@ -51,7 +52,7 @@ func getEntry(this js.Value, args []js.Value) interface{} {
 
 func doGetEntries(slice []string) {
 	if modNames == nil {
-		modNames = getSchemaList(globalSession)
+		modNames = GetSchemaList(GlobalSession)
 	}
 	entries, _ := listYang(strings.Join(slice, " "))
 
@@ -91,12 +92,12 @@ func getEntries(this js.Value, args []js.Value) interface{} {
 
 func doGetSchemas(resolve *js.Value) {
 	sessionCond.L.Lock()
-	for globalSession == nil {
+	for GlobalSession == nil {
 		sessionCond.Wait()
 	}
 	sessionCond.L.Unlock()
 	log.Printf("Getting schemas\n")
-	modNames = getSchemaList(globalSession)
+	modNames = GetSchemaList(GlobalSession)
 	log.Printf("Got schemas: %v\n", modNames[:3])
 	js.Global().Call("foo", strings.Join(modNames, " "))
 	if resolve != nil {
@@ -125,7 +126,7 @@ func jsonWrapper(this js.Value, args []js.Value) interface{} {
 }
 
 func sendNetconfRequest3(resolve *js.Value, req []string, reqType types.RequestType) {
-	netconfData, data := sendNetconfRequest(globalSession, strings.Join(req, " "), reqType)
+	netconfData, data := SendNetconfRequest(GlobalSession, strings.Join(req, " "), reqType)
 	fmt.Printf("sendNetconfRequest3: %v, %v\n", netconfData, data)
 
 	if resolve != nil {
@@ -166,7 +167,7 @@ func connect(this js.Value, args []js.Value) interface{} {
 			resolve := args[0]
 			go func(resolve *js.Value) {
 				var err error = nil
-				globalSession, err = DialWebSocket("localhost", 12345)
+				GlobalSession, err = transports.DialWebSocket("localhost", 12345)
 				if err != nil {
 					log.Panicf("%v\n", err)
 				} else {

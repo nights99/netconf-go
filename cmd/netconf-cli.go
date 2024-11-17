@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"netconf-go/internal/transports"
 	"netconf-go/internal/types"
 	"os"
 	"path/filepath"
@@ -14,7 +15,7 @@ import (
 	"strconv"
 	"strings"
 
-	// "netconf-go/internal/lib"
+	lib "netconf-go/internal/lib"
 
 	// "netconf-go/internal/lib"
 
@@ -45,7 +46,7 @@ func wordCompleter(line string, pos2 int) (head string, completions []string, ta
 	log.Debugf("tokens: %d, %v", len(tokens), tokens)
 
 	if len(tokens) >= 2 || strings.HasSuffix(line, " ") {
-		yangCompletions, returnType := ListYang(line)
+		yangCompletions, returnType := lib.ListYang(line)
 		// fmt.Printf("Completions %v\n", yangCompletions)
 
 		cs := make([]string, len(yangCompletions))
@@ -78,13 +79,13 @@ func wordCompleter(line string, pos2 int) (head string, completions []string, ta
 		// cs = []string{longestcommon.Prefix(cs[:pos])}
 		// fmt.Printf("Found %v\n", cs)
 		// Add a space on the end if we've found a completion
-		if len(cs[:pos]) == 1 && returnType != replaceLast {
+		if len(cs[:pos]) == 1 && returnType != types.ReplaceLast {
 			cs[0] += " "
 		}
-		if returnType == replaceLast {
+		if returnType == types.ReplaceLast {
 			tokens = tokens[:len(tokens)-1]
 		}
-		if strings.HasSuffix(line, " ") || returnType == replaceLast {
+		if strings.HasSuffix(line, " ") || returnType == types.ReplaceLast {
 			return strings.Join(tokens, " ") + " ", cs[:pos], ""
 		} else {
 			if found_augment {
@@ -170,7 +171,7 @@ func main() {
 	// Connect to the node
 	var s *netconf.Session
 	if *telnet {
-		transport, err := DialTelnet(addr+":"+strconv.Itoa(port), "lab", "lab", nil)
+		transport, err := transports.DialTelnet(addr+":"+strconv.Itoa(port), "lab", "lab", nil)
 		if err != nil {
 			panic(err)
 		}
@@ -200,7 +201,7 @@ func main() {
 		}
 	}
 
-	globalSession = s
+	lib.GlobalSession = s
 
 	if !testMode {
 		defer s.Close(context.Background())
@@ -209,7 +210,7 @@ func main() {
 	// fmt.Printf("Server Capabilities: '%+v'\n", s.ServerCapabilities[0])
 	// fmt.Printf("Session Id: %d\n\n", s.SessionID)
 
-	modNames = getSchemaList(s)
+	modNames = lib.GetSchemaList(s)
 	//fmt.Printf("modNames: %v\n", modNames)
 	sort.Strings(modNames)
 	var requestLine string
@@ -234,7 +235,7 @@ func main() {
 	if testMode {
 		return
 	}
-	getYangModule(s, "iana-if-type")
+	lib.GetYangModule(s, "iana-if-type")
 	for {
 		// Maps string to void
 		// Becomes a nested map of strings
@@ -265,7 +266,7 @@ func main() {
 			slice := strings.Split(requestLine, " ")
 			log.Debug("Set line:", slice[1:])
 
-			netconfData, _ := sendNetconfRequest(s, requestLine, types.EditConf)
+			netconfData, _ := lib.SendNetconfRequest(s, requestLine, types.EditConf)
 			fmt.Printf("Request data: %v\n", netconfData)
 		case strings.HasPrefix(line, "get-conf"):
 			// TODO make common with get-oper/rpc below using fallthrough
@@ -273,7 +274,7 @@ func main() {
 			slice := strings.Split(requestLine, " ")
 			log.Debug("Set line:", slice[1:])
 
-			netconfData, _ := sendNetconfRequest(s, requestLine, types.GetConf)
+			netconfData, _ := lib.SendNetconfRequest(s, requestLine, types.GetConf)
 			fmt.Printf("Request data: %v\n", netconfData)
 		case strings.HasPrefix(line, "get-oper"), strings.HasPrefix(line, "rpc"):
 			// TODO make common with set
@@ -294,14 +295,14 @@ func main() {
 			case "get-conf":
 				op = types.GetConf
 			}
-			netconfData, _ := sendNetconfRequest(s, requestLine, op)
+			netconfData, _ := lib.SendNetconfRequest(s, requestLine, op)
 			fmt.Printf("Request data: %v\n", netconfData)
 		case strings.HasPrefix(line, "validate"):
 			requestLine = line
-			sendNetconfRequest(s, requestLine, types.Validate)
+			lib.SendNetconfRequest(s, requestLine, types.Validate)
 		case strings.HasPrefix(line, "commit"):
 			requestLine = line
-			sendNetconfRequest(s, requestLine, types.Commit)
+			lib.SendNetconfRequest(s, requestLine, types.Commit)
 		default:
 		}
 		log.Debug("you said:", strconv.Quote(line))

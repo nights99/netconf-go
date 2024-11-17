@@ -10,3 +10,8 @@ const (
 	RpcOp                = 5
 	EditConf             = 6
 )
+
+const (
+	NewTokens   = 0
+	ReplaceLast = 1
+)

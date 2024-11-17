@@ -1,4 +1,4 @@
-package main
+package lib
 
 import (
 	"encoding/xml"
@@ -44,7 +44,7 @@ func GetInterfaces(s *netconf.Session) []string {
 	// requestMap = expand(requestMap, slice[1:])
 	// log.Debugf("expand: %v\n", requestMap)
 
-	data, _ := sendNetconfRequest(s, requestLine, types.GetOper)
+	data, _ := SendNetconfRequest(s, requestLine, types.GetOper)
 	yangReply := intfReply{}
 	err := xml.Unmarshal([]byte(data), &yangReply)
 	if err != nil {
@@ -105,7 +105,7 @@ func GetNodes(s *netconf.Session) []string {
 	// TODO make common with set
 	requestLine := "get-oper Cisco-IOS-XR-platform-oper platform racks rack rack-name=0"
 
-	data, _ := sendNetconfRequest(s, requestLine, types.GetOper)
+	data, _ := SendNetconfRequest(s, requestLine, types.GetOper)
 	yangReply := nodesReply{}
 	err := xml.Unmarshal([]byte(data), &yangReply)
 	if err != nil {
