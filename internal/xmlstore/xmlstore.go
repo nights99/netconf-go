@@ -103,6 +103,11 @@ func (el *xmlElement) insert(yangMod *yang.Entry, path []string, requestType typ
 				Local: nv[0],
 				// Space: el.XMLName.Space
 			}, "", []xmlElementInterface{}, false, nil}
+			if strings.Contains(nv[0], "@") {
+				spaceLocal := strings.Split(nv[0], "@")
+				child.XMLName.Space = spaceLocal[0]
+				child.XMLName.Local = spaceLocal[1]
+			}
 			if len(nv) > 1 {
 				child.Value = nv[1]
 			}
