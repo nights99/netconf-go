@@ -740,3 +740,18 @@ func timeTrack(start time.Time, name string) {
 func ListYang(path string) ([]string, int) {
 	return listYang(path)
 }
+
+func GetEntry(yangClassName string, args []string) *yang.Entry {
+	mod := ms.Modules[yangClassName]
+	fmt.Printf("getEntryx %v %v\n", mod, ms)
+	entry := yang.ToEntry(mod)
+
+	for i := 0; i < len(args); i++ {
+		v := args[i]
+		if v == "" || entry == nil {
+			break
+		}
+		entry = entry.Dir[v]
+	}
+	return entry
+}

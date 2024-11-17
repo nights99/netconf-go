@@ -5,7 +5,7 @@
 // ~/go/bin/goexec 'http.ListenAndServe(`:8080`, http.FileServer(http.Dir(`.`)))'
 // cp main.wasm xxx
 
-package lib
+package main
 
 import (
 	"encoding/json"
@@ -14,10 +14,10 @@ import (
 	"sync"
 	"syscall/js"
 
+	"netconf-go/internal/lib"
 	"netconf-go/internal/transports"
 	"netconf-go/internal/types"
 
-	"github.com/openconfig/goyang/pkg/yang"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -30,18 +30,19 @@ func getEntry(this js.Value, args []js.Value) interface{} {
 	log.Infoln("Go entry")
 	fmt.Printf("getEntry input %v %v %v\n", this, args, len(args))
 	yangClassName := args[0].Index(0).String()
-	mod := ms.Modules[yangClassName]
-	fmt.Printf("getEntryx %v %v\n", mod, ms)
-	entry := yang.ToEntry(mod)
 
+	string_args := make([]string, 0)
 	for i := 1; i < args[0].Length(); i++ {
 		v := args[0].Index(i)
-		// log.Printf("Bar77: %v %v %v", v, i, entry)
-		if v.String() == "" || entry == nil {
+		if v.String() == "" {
 			break
 		}
-		entry = entry.Dir[v.String()]
+		string_args = append(string_args, v.String())
 	}
+
+	fmt.Printf("getEntry input %v %v\n", yangClassName, string_args)
+	entry := lib.GetEntry(yangClassName, string_args)
+	fmt.Printf("getEntry returned %v\n", entry)
 
 	foo, _ := json.Marshal(entry)
 
@@ -52,9 +53,9 @@ func getEntry(this js.Value, args []js.Value) interface{} {
 
 func doGetEntries(slice []string) {
 	if modNames == nil {
-		modNames = GetSchemaList(GlobalSession)
+		modNames = lib.GetSchemaList(lib.GlobalSession)
 	}
-	entries, _ := listYang(strings.Join(slice, " "))
+	entries, _ := lib.ListYang(strings.Join(slice, " "))
 
 	webEntries := make([]string, 0)
 	webEntries = append(webEntries, "GetEntries")
@@ -92,12 +93,12 @@ func getEntries(this js.Value, args []js.Value) interface{} {
 
 func doGetSchemas(resolve *js.Value) {
 	sessionCond.L.Lock()
-	for GlobalSession == nil {
+	for lib.GlobalSession == nil {
 		sessionCond.Wait()
 	}
 	sessionCond.L.Unlock()
 	log.Printf("Getting schemas\n")
-	modNames = GetSchemaList(GlobalSession)
+	modNames = lib.GetSchemaList(lib.GlobalSession)
 	log.Printf("Got schemas: %v\n", modNames[:3])
 	js.Global().Call("foo", strings.Join(modNames, " "))
 	if resolve != nil {
@@ -126,7 +127,7 @@ func jsonWrapper(this js.Value, args []js.Value) interface{} {
 }
 
 func sendNetconfRequest3(resolve *js.Value, req []string, reqType types.RequestType) {
-	netconfData, data := SendNetconfRequest(GlobalSession, strings.Join(req, " "), reqType)
+	netconfData, data := lib.SendNetconfRequest(lib.GlobalSession, strings.Join(req, " "), reqType)
 	fmt.Printf("sendNetconfRequest3: %v, %v\n", netconfData, data)
 
 	if resolve != nil {
@@ -167,7 +168,7 @@ func connect(this js.Value, args []js.Value) interface{} {
 			resolve := args[0]
 			go func(resolve *js.Value) {
 				var err error = nil
-				GlobalSession, err = transports.DialWebSocket("localhost", 12345)
+				lib.GlobalSession, err = transports.DialWebSocket("localhost", 12345)
 				if err != nil {
 					log.Panicf("%v\n", err)
 				} else {
