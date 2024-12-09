@@ -12,7 +12,7 @@ require (
 	github.com/peterh/liner v1.2.2
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/sirupsen/logrus v1.9.3
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	golang.org/x/crypto v0.29.0
 	golang.org/x/sys v0.27.0 // indirect
 	nhooyr.io/websocket v1.8.17
@@ -21,7 +21,7 @@ require (
 require github.com/Juniper/go-netconf v0.3.0
 
 require (
-	github.com/nemith/netconf v0.0.2-0.20240909031326-9e1c7e00bf1a
+	github.com/nemith/netconf v0.0.2
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.19.0
 	github.com/ziutek/telnet v0.1.0
