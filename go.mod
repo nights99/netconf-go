@@ -21,7 +21,7 @@ require (
 require github.com/Juniper/go-netconf v0.3.0
 
 require (
-	github.com/nemith/netconf v0.0.2-0.20240909031326-9e1c7e00bf1a
+	github.com/nemith/netconf v0.0.2
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.19.0
 	github.com/ziutek/telnet v0.1.0
