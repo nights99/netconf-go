@@ -1,6 +1,4 @@
-package main
-
-// package lib
+package lib
 
 import (
 	"bytes"
@@ -8,7 +6,6 @@ import (
 	"encoding/xml"
 	"fmt"
 
-	// "netconf-go/internal/completions"
 	"netconf-go/internal/types"
 	"netconf-go/internal/xmlstore"
 	"os"
@@ -27,11 +24,6 @@ const (
 	running            cfgDatastore = iota
 	candidate                       = 1
 	runningInheritance              = 2
-)
-
-const (
-	newTokens   = 0
-	replaceLast = 1
 )
 
 type yangReply struct {
@@ -78,12 +70,12 @@ var mods = map[string]*yang.Module{}
 
 var modNames2 []string
 
-var globalSession *netconf.Session
+var GlobalSession *netconf.Session
 
 func listYang(path string) ([]string, int) {
 	var didAugment bool = false
 	var currentPrefix string
-	var returnType = newTokens
+	var returnType = types.NewTokens
 
 	log.Debugf("listYang called on path: %s", path)
 	// yang.ParseOptions.IgnoreSubmoduleCircularDependencies = true
@@ -99,7 +91,7 @@ func listYang(path string) ([]string, int) {
 			return modNames2, returnType
 		}
 		if mods[tokens[1]] == nil {
-			mods[tokens[1]] = getYangModule(globalSession, tokens[1])
+			mods[tokens[1]] = GetYangModule(GlobalSession, tokens[1])
 		}
 		mod := mods[tokens[1]]
 		if mod == nil {
@@ -249,13 +241,13 @@ func listYang(path string) ([]string, int) {
 				entry.Key != "" {
 				if entry.Dir[keys[0]].Type.Name == "Interface-name" ||
 					(entry.Name == "interface" && keys[0] == "name") {
-					intfs := GetInterfaces(globalSession)
+					intfs := GetInterfaces(GlobalSession)
 					println(intfs)
 					for _, intf := range intfs {
 						names = append(names, prefix+keys[0]+"="+intf)
 					}
 				} else if entry.Dir[keys[0]].Type.Name == "Node-id" {
-					nodes := GetNodes(globalSession)
+					nodes := GetNodes(GlobalSession)
 					println(nodes)
 					for _, node := range nodes {
 						names = append(names, prefix+keys[0]+"="+node)
@@ -281,7 +273,7 @@ func listYang(path string) ([]string, int) {
 			// for input
 			fmt.Printf("Enter RPC input: %s\n", entry.Description)
 			names = append(names, entry.Name+"=")
-			returnType = replaceLast
+			returnType = types.ReplaceLast
 		} else if entry.Type.Kind == yang.Yidentityref {
 			for _, s := range entry.Type.IdentityBase.Values {
 				// names = append(names, s.Name)
@@ -475,7 +467,7 @@ func (nc *netconfRequest) MarshalXML(enc *xml.Encoder, start xml.StartElement) e
 	return nil
 }
 
-func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
+func GetYangModule(s *netconf.Session, yangMod string) *yang.Module {
 	/*
 	 * Get the yang module from XR and read it into the map
 	 */
@@ -522,7 +514,7 @@ func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
 			log.Debugf("Mod include: %v %v", mod.Name, i)
 			// Add check here whether we already have the submodule; if not get it, and note we need to reprocess this module further down.
 			if ms.Modules[i.Name] == nil && ms.SubModules[i.Name] == nil {
-				submod := getYangModule(globalSession, i.Name)
+				submod := GetYangModule(GlobalSession, i.Name)
 				if submod == nil {
 					log.Infof("Failed to get %v", i.Name)
 				} else {
@@ -538,7 +530,7 @@ func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
 			log.Debugf("Mod import: %v %v", mod.Name, i)
 			// Add check here whether we already have the submodule; if not get it, and note we need to reprocess this module further down.
 			if ms.Modules[i.Name] == nil && ms.SubModules[i.Name] == nil {
-				submod := getYangModule(globalSession, i.Name)
+				submod := GetYangModule(GlobalSession, i.Name)
 				if submod == nil {
 					log.Infof("Failed to get %v", i.Name)
 				} else {
@@ -576,7 +568,7 @@ func getYangModule(s *netconf.Session, yangMod string) *yang.Module {
 
 	return mod
 }
-func sendNetconfRequest(s *netconf.Session, requestLine string, requestType types.RequestType) (string, string) {
+func SendNetconfRequest(s *netconf.Session, requestLine string, requestType types.RequestType) (string, string) {
 	var store xmlstore.XMLStore
 
 	defer timeTrack(time.Now(), "Request")
@@ -588,7 +580,7 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType type
 		 * If we don't know the module, read it from the router now.
 		 */
 		if mods[slice[1]] == nil {
-			mods[slice[1]] = getYangModule(s, slice[1])
+			mods[slice[1]] = GetYangModule(s, slice[1])
 			if mods[slice[1]] == nil {
 				return "Couldn't get yang module", ""
 			}
@@ -704,7 +696,7 @@ func sendNetconfRequest(s *netconf.Session, requestLine string, requestType type
 	}
 }
 
-func getSchemaList(s *netconf.Session) []string {
+func GetSchemaList(s *netconf.Session) []string {
 	/*
 	 * Get a list of schemas
 	 */
@@ -747,4 +739,19 @@ func timeTrack(start time.Time, name string) {
 
 func ListYang(path string) ([]string, int) {
 	return listYang(path)
+}
+
+func GetEntry(yangClassName string, args []string) *yang.Entry {
+	mod := ms.Modules[yangClassName]
+	fmt.Printf("getEntryx %v %v\n", mod, ms)
+	entry := yang.ToEntry(mod)
+
+	for i := 0; i < len(args); i++ {
+		v := args[i]
+		if v == "" || entry == nil {
+			break
+		}
+		entry = entry.Dir[v]
+	}
+	return entry
 }

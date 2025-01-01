@@ -32,7 +32,7 @@ require (
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
-	github.com/google/go-cmp v0.5.9 // indirect
+	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
@@ -58,7 +58,7 @@ require (
 // replace github.com/openconfig/goyang => ./goyang/
 
 // replace github.com/openconfig/goyang => ./src/github.com/openconfig/goyang/
-replace github.com/openconfig/goyang => github.com/nights99/goyang v0.2.5-0.20230528130339-76fd486cbc28
+replace github.com/openconfig/goyang => github.com/nights99/goyang v0.2.5-0.20241208122904-7fab041cb7ce
 
 // replace github.com/peterh/liner => ./src/github.com/peterh/liner
 

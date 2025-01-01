@@ -1,4 +1,4 @@
-package main
+package lib
 
 import (
 	"encoding/xml"
@@ -121,7 +121,7 @@ func Test_getYangModule(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getYangModule(tt.args.s, tt.args.yangMod); !reflect.DeepEqual(got, tt.want) {
+			if got := GetYangModule(tt.args.s, tt.args.yangMod); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getYangModule() = %v, want %v", got, tt.want)
 			}
 		})
@@ -144,7 +144,7 @@ func Test_sendNetconfRequest(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1 := sendNetconfRequest(tt.args.s, tt.args.requestLine, tt.args.requestType)
+			got, got1 := SendNetconfRequest(tt.args.s, tt.args.requestLine, tt.args.requestType)
 			if got != tt.want {
 				t.Errorf("sendNetconfRequest() got = %v, want %v", got, tt.want)
 			}
@@ -168,7 +168,7 @@ func Test_getSchemaList(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getSchemaList(tt.args.s); !reflect.DeepEqual(got, tt.want) {
+			if got := GetSchemaList(tt.args.s); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getSchemaList() = %v, want %v", got, tt.want)
 			}
 		})

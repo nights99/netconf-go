@@ -1,6 +1,6 @@
 //go:build wasm
 
-package main
+package transports
 
 import (
 	"context"
