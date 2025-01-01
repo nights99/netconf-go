@@ -85,8 +85,8 @@ github.com/mattn/go-runewidth v0.0.15/go.mod h1:Jdepj2loyihRzMpdS35Xk/zdY8IAYHsh
 github.com/mitchellh/go-wordwrap v1.0.1/go.mod h1:R62XHJLzvMFRBbcrT7m7WgmE1eOyTSsCt+hzestvNj0=
 github.com/mitchellh/mapstructure v1.5.0 h1:jeMsZIYE/09sWLaz43PL7Gy6RuMjD2eJVyuac5Z2hdY=
 github.com/mitchellh/mapstructure v1.5.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
-github.com/nemith/netconf v0.0.2-0.20240909031326-9e1c7e00bf1a h1:71afP2GOzrBlF9QKqPF3ah9s3shi2EU+kqw7pWedQfE=
-github.com/nemith/netconf v0.0.2-0.20240909031326-9e1c7e00bf1a/go.mod h1:z9gcDAn9IC6gfCuUFlI0xT+GhHMXc7JmdFnYgV4c/U0=
+github.com/nemith/netconf v0.0.2 h1:sRnG1gWoQ+hIBOGHONCna71D6XsyvNact+cVr/j7lpE=
+github.com/nemith/netconf v0.0.2/go.mod h1:Z/2MGfpn3++rYycJK7nk4W7tOzBkzcrvKj9josVyDxg=
 github.com/nights99/goyang v0.2.5-0.20241208122904-7fab041cb7ce h1:tYSnHRavuYo5P7IfxWZUmcUvGpUh1BYzJq4KE9x7HzU=
 github.com/nights99/goyang v0.2.5-0.20241208122904-7fab041cb7ce/go.mod h1:sdNZi/wdTZyLNBNfgLzmmbi7kISm7FskMDKKzMY+x1M=
 github.com/openconfig/gnmi v0.10.0 h1:kQEZ/9ek3Vp2Y5IVuV2L/ba8/77TgjdXg505QXvYmg8=
