@@ -50,6 +50,10 @@ func (t *TransportWebSocket) Read(p []byte) (int, error) {
 		_, t.lastMsg, err = t.wsConn.Read(ctx)
 		if err != nil {
 			log.Printf("Ws read err: %v\n", err)
+			// Convert "use of closed network connection" to EOF
+			if websocket.CloseStatus(err) == websocket.StatusNormalClosure {
+				return 0, io.EOF
+			}
 			return 0, err
 		}
 		// log.Printf("Ws read: %v\n", string(t.lastMsg))
