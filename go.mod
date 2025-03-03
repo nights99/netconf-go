@@ -1,7 +1,6 @@
 module netconf-go
 
 go 1.22.5
-
 toolchain go1.23.2
 
 require (
@@ -13,7 +12,7 @@ require (
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
-	golang.org/x/crypto v0.33.0
+	golang.org/x/crypto v0.35.0
 	golang.org/x/sys v0.30.0 // indirect
 	nhooyr.io/websocket v1.8.17
 )
