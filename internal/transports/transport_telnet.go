@@ -42,7 +42,7 @@ func (t *TransportTelnet) Dial(target string, username string, password string, 
 	if err != nil {
 		return err
 	}
-	tn.SetUnixWriteMode(true)
+	// tn.SetUnixWriteMode(true)
 
 	t.telnetConn = tn
 	// t.ReadWriteCloser = tn
