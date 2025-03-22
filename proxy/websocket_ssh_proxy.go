@@ -23,16 +23,15 @@ import (
 // go run proxy/websocket_ssh_proxy.go
 
 var wg sync.WaitGroup
+var helloDone = false
+var cond = sync.NewCond(&mu)
+var mu sync.Mutex
 
 func webToSSH(web net.Conn, ssh *ncssh.Transport) {
 	defer wg.Done()
 	// var n int
 	// var err error
-	writer, err := ssh.MsgWriter()
-	if err != nil {
-		log.Print("Failed to get writer: ", err)
-		return
-	}
+	writer := ssh.RawWriter()
 	for {
 		payload, err := wsutil.ReadClientBinary(web)
 
@@ -42,12 +41,18 @@ func webToSSH(web net.Conn, ssh *ncssh.Transport) {
 			return
 		}
 		log.Printf("Ws read: %v\n", string(payload))
+		if !helloDone {
+			cond.L.Lock()
+			cond.Wait()
+			cond.L.Unlock()
+		}
 		n, err := writer.Write(payload)
 		if err != nil {
 			log.Print("Failed to ncwrite: ", err)
 			return
 		} else {
 			log.Printf("NC write: %d bytes\n", n)
+			writer.Flush()
 		}
 
 		// var output string
@@ -99,15 +104,11 @@ func sshToWeb(web net.Conn, ssh *ncssh.Transport) {
 	bytes := make([]byte, 1024*1024)
 	// bytes2 := make([]byte, 1024*1024)
 	var n, total int
-	var err error
 	// TODO Could we just use io.Copy()?
 	// try_again:
-	reader, err := ssh.MsgReader()
-	if err != nil {
-		log.Print("Failed to get reader: ", err)
-		return
-	}
+	reader := ssh.RawReader()
 	for {
+		var err error
 		total = 0
 		for {
 			log.Debugln("Before read")
@@ -115,14 +116,18 @@ func sshToWeb(web net.Conn, ssh *ncssh.Transport) {
 			log.Debugln("After read")
 			if n > 0 {
 				// log.Printf("NC read: got %d bytes: %s\n", n, string(bytes))
-				log.Debugf("NC read: got %d bytes\n", n)
+				log.Debugf("NC read: got %d bytes %v\n", n, err)
 				// bytes2 = append(bytes2, bytes[:n]...)
 				total += n
+				if total > 4096 {
+					log.Printf("NC read: %v \n%v\n", string(bytes), string(bytes[total-4096:total]))
+				} else {
+					log.Printf("NC read: %v\n", string(bytes))
+				}
 				if strings.Contains(string(bytes), msgSeperator) ||
 					strings.Contains(string(bytes), msgSeperator_v11) ||
 					err == io.EOF {
-					log.Debugf("NC read: got end marker\n")
-					// log.Printf("NC read: %v \n%v\n", bytes, bytes2[total-4096:total])
+					log.Debugf("NC read: got end marker, %v\n", err)
 					break
 				}
 			} else if err != nil {
@@ -133,6 +138,10 @@ func sshToWeb(web net.Conn, ssh *ncssh.Transport) {
 				// goto try_again
 
 			}
+		}
+		if !helloDone {
+			helloDone = true
+			cond.Broadcast()
 		}
 		// log.Printf("Ws write: %d bytes %v\n", total, bytes[total-100:total])
 		log.Printf("Ws write: %d bytes\n", total)
@@ -185,7 +194,7 @@ func main() {
 		}
 		println("Connected!")
 		// var s *netconf.Session
-		// s, err = netconf.Open(transport2)
+		// _, err = netconf.Open(transport2)
 		// if err != nil {
 		// 	panic(err)
 		// }
