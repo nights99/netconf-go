@@ -16,8 +16,6 @@ import (
 
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
-
-	ncssh "github.com/nemith/netconf/transport/ssh"
 )
 
 // go run proxy/websocket_ssh_proxy.go
@@ -27,11 +25,73 @@ var helloDone = false
 var cond = sync.NewCond(&mu)
 var mu sync.Mutex
 
-func webToSSH(web net.Conn, ssh *ncssh.Transport) {
+type sshNetconfConn struct {
+	conn    net.Conn
+	session *ssh.Session
+	stdin   io.WriteCloser
+	stdout  io.Reader
+}
+
+func (c *sshNetconfConn) Reader() io.Reader {
+	return c.stdout
+}
+
+func (c *sshNetconfConn) Writer() io.Writer {
+	return c.stdin
+}
+
+func (c *sshNetconfConn) Close() error {
+	if c.session != nil {
+		c.session.Close()
+	}
+	if c.conn != nil {
+		c.conn.Close()
+	}
+	return nil
+}
+
+// localDial establishes an SSH connection and requests the netconf subsystem.
+func localDial(ctx context.Context, network, addr string, config *ssh.ClientConfig) (*sshNetconfConn, error) {
+	conn, err := net.Dial(network, addr)
+	if err != nil {
+		return nil, err
+	}
+	sshConn, chans, reqs, err := ssh.NewClientConn(conn, addr, config)
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+	client := ssh.NewClient(sshConn, chans, reqs)
+	sess, err := client.NewSession()
+	if err != nil {
+		client.Close()
+		return nil, err
+	}
+	stdin, err := sess.StdinPipe()
+	if err != nil {
+		sess.Close()
+		return nil, err
+	}
+	stdout, err := sess.StdoutPipe()
+	if err != nil {
+		sess.Close()
+		return nil, err
+	}
+	if err := sess.RequestSubsystem("netconf"); err != nil {
+		sess.Close()
+		return nil, err
+	}
+	return &sshNetconfConn{
+		conn:    conn,
+		session: sess,
+		stdin:   stdin,
+		stdout:  stdout,
+	}, nil
+}
+
+func webToSSH(web net.Conn, ssh *sshNetconfConn) {
 	defer wg.Done()
-	// var n int
-	// var err error
-	writer := ssh.RawWriter()
+	writer := ssh.Writer()
 	for {
 		payload, err := wsutil.ReadClientBinary(web)
 
@@ -52,7 +112,9 @@ func webToSSH(web net.Conn, ssh *ncssh.Transport) {
 			return
 		} else {
 			log.Printf("NC write: %d bytes\n", n)
-			writer.Flush()
+			if f, ok := writer.(interface{ Flush() error }); ok {
+				f.Flush()
+			}
 		}
 
 		// var output string
@@ -99,14 +161,13 @@ const (
 	msgSeperator_v11 = "\n##\n"
 )
 
-func sshToWeb(web net.Conn, ssh *ncssh.Transport) {
+func sshToWeb(web net.Conn, ssh *sshNetconfConn) {
 	defer wg.Done()
 	bytes := make([]byte, 1024*1024)
-	// bytes2 := make([]byte, 1024*1024)
 	var n, total int
 	// TODO Could we just use io.Copy()?
 	// try_again:
-	reader := ssh.RawReader()
+	reader := ssh.Reader()
 	for {
 		var err error
 		total = 0
@@ -150,7 +211,6 @@ func sshToWeb(web net.Conn, ssh *ncssh.Transport) {
 			log.Printf("WS write err: %v\n", err)
 		}
 	}
-
 }
 
 func main() {
@@ -183,9 +243,7 @@ func main() {
 		if _, err = upgrader.Upgrade(conn); err != nil {
 			// handle error
 		}
-		// err = t.Dial("sjc24lab-srv7:10007", sshConfig)
-		// err = t.Dial("172.26.228.148:64374", sshConfig)
-		transport2, err := ncssh.Dial(context.Background(), "tcp", "sandbox-iosxr-1.cisco.com:830", sshConfig)
+		sshConn, err := localDial(context.Background(), "tcp", "sandbox-iosxr-1.cisco.com:830", sshConfig)
 		if err != nil {
 			// t.Close()
 			panic(err)
@@ -193,15 +251,7 @@ func main() {
 			// defer t.Close()
 		}
 		println("Connected!")
-		// var s *netconf.Session
-		// _, err = netconf.Open(transport2)
-		// if err != nil {
-		// 	panic(err)
-		// }
-
-		go webToSSH(conn, transport2)
-		go sshToWeb(conn, transport2)
-
-		// wg.Wait()
+		go webToSSH(conn, sshConn)
+		go sshToWeb(conn, sshConn)
 	}
 }
