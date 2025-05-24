@@ -137,7 +137,7 @@ func main() {
 	pflag.Int("port", 22, "Port number to connect to")
 	pflag.String("address", "localhost", "Address or host to connect to")
 	host := pflag.String("host", "", "Hostname referring to hosts.yaml entry")
-	telnet = pflag.Bool("t", false, "Use telnet to connect")
+	telnet = pflag.BoolP("telnet", "t", false, "Use telnet to connect")
 	logLevel = pflag.String("debug", log.InfoLevel.String(), "debug level")
 
 	pflag.String("user", "", "Username")
