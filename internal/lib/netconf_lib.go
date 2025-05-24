@@ -651,8 +651,7 @@ func SendNetconfRequest(s *netconf.Session, requestLine string, requestType type
 			fmt.Printf("Request reply: %v, error: %v\n", reply, error)
 			return "", ""
 		}
-		log.Debugf("Request reply: %v, error: %v, data: %v\n", reply, error, reply.Body)
-		// fmt.Printf("Request data: %v\n", reply.Data)
+		log.Debugf("Request reply: data: %s\n", string(reply.Body))
 	}
 
 	if reply != nil {

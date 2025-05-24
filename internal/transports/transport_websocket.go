@@ -4,9 +4,11 @@ package transports
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"strconv"
 
 	// "syscall/js"
@@ -49,7 +51,11 @@ func (t *TransportWebSocket) Read(p []byte) (int, error) {
 		var err error
 		_, t.lastMsg, err = t.wsConn.Read(ctx)
 		if err != nil {
-			log.Printf("Ws read err: %v\n", err)
+			log.Printf("Ws read err: %v %v %T %d\n", err, errors.Unwrap(err), err, websocket.CloseStatus(err))
+			if errors.Is(err, net.ErrClosed) {
+				log.Printf("Ws read: net.ErrClosed\n")
+				return 0, io.EOF
+			}
 			// Convert "use of closed network connection" to EOF
 			if websocket.CloseStatus(err) == websocket.StatusNormalClosure {
 				return 0, io.EOF
