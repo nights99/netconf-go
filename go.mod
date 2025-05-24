@@ -18,7 +18,7 @@ require (
 	nhooyr.io/websocket v1.8.17
 )
 
-require github.com/Juniper/go-netconf v0.3.0
+require github.com/Juniper/go-netconf v0.3.1
 
 require (
 	github.com/nemith/netconf v0.0.2
