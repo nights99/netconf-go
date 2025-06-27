@@ -18,8 +18,6 @@ require (
 	nhooyr.io/websocket v1.8.17
 )
 
-require github.com/Juniper/go-netconf v0.3.1
-
 require (
 	github.com/nemith/netconf v0.0.2
 	github.com/spf13/pflag v1.0.6
@@ -30,7 +28,7 @@ require (
 require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
-	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
+	github.com/go-viper/mapstructure/v2 v2.3.0 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
