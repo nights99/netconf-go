@@ -18,9 +18,6 @@ jobs:
       with:
         go-version: 1.23.2
 
-    - name: Mods
-      run: go mod download github.com/Juniper/go-netconf
-
     - name: Build
       run: go build -v ./...
 
