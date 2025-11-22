@@ -20,7 +20,7 @@ require (
 
 require (
 	github.com/nemith/netconf v0.0.2
-	github.com/spf13/pflag v1.0.7
+	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.20.1
 	github.com/ziutek/telnet v0.1.0
 )
