@@ -11,7 +11,7 @@ require (
 	github.com/openconfig/goyang v1.4.5
 	github.com/peterh/liner v1.2.2
 	github.com/rivo/uniseg v0.4.4 // indirect
-	github.com/sirupsen/logrus v1.9.3
+	github.com/sirupsen/logrus v1.9.4
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/crypto v0.46.0
 	golang.org/x/sys v0.39.0 // indirect
