@@ -9,7 +9,6 @@ require (
 	github.com/openconfig/goyang v1.6.3
 	github.com/peterh/liner v1.2.2
 	github.com/sirupsen/logrus v1.9.4
-	github.com/stretchr/testify v1.11.1
 	golang.org/x/crypto v0.51.0
 	golang.org/x/sys v0.44.0 // indirect
 	nhooyr.io/websocket v1.8.17
@@ -40,7 +39,6 @@ require (
 	golang.org/x/exp v0.0.0-20260508232706-74f9aab9d74a // indirect
 	golang.org/x/text v0.37.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 // go mod edit -replace github.com/openconfig/goyang=github.com/nights99/goyang@dynamic_read
