@@ -51,7 +51,7 @@ func (c *sshNetconfConn) Close() error {
 }
 
 // localDial establishes an SSH connection and requests the netconf subsystem.
-func localDial(ctx context.Context, network, addr string, config *ssh.ClientConfig) (*sshNetconfConn, error) {
+func localDial(_ context.Context, network, addr string, config *ssh.ClientConfig) (*sshNetconfConn, error) {
 	conn, err := net.Dial(network, addr)
 	if err != nil {
 		return nil, err
