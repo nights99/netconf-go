@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"netconf-go/internal/cliargs"
 	"netconf-go/internal/transports"
 	"netconf-go/internal/types"
 	"os"
@@ -27,7 +28,6 @@ import (
 	"github.com/peterh/liner"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -113,65 +113,24 @@ func wordCompleter(line string, pos2 int) (head string, completions []string, ta
 }
 
 func main() {
-	var port int
-	var addr string
-	var logLevel *string
-	var telnet *bool
 	var testMode = false
 	var err error
 
-	// Read config file using Viper
-	viper.SetConfigName("hosts")
-	viper.AddConfigPath(".")
-	if err = viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			// Config file not found; ignore error if desired
-		} else {
-			// Config file was found but another error was produced
-			panic(err)
-		}
-	}
-
-	// Config file found and successfully parsed
-	// Parse args
-	pflag.Int("port", 22, "Port number to connect to")
-	pflag.String("address", "localhost", "Address or host to connect to")
-	host := pflag.String("host", "", "Hostname referring to hosts.yaml entry")
-	telnet = pflag.BoolP("telnet", "t", false, "Use telnet to connect")
-	logLevel = pflag.String("debug", log.InfoLevel.String(), "debug level")
-
-	pflag.String("user", "", "Username")
-	pflag.String("password", "", "Password")
-
+	cliargs.AddFlags(pflag.CommandLine)
 	pflag.Parse()
-	var hostConfig *viper.Viper
-	if *host != "" {
-		hostConfig = viper.Sub(*host)
-		if hostConfig == nil { // Sub returns nil if the key cannot be found
-			panic("host configuration not found")
-		}
-		hostConfig.BindPFlags(pflag.CommandLine)
-	}
-	viper.BindPFlags(pflag.CommandLine)
 
-	log.Debugf("pflags: %v\n", viper.AllSettings())
-	if hostConfig != nil {
-		log.Debugf("host pflags: %v\n", hostConfig.AllSettings())
-		viper.MergeConfigMap(hostConfig.AllSettings())
+	cfg, err := cliargs.Load(pflag.CommandLine, ".")
+	if err != nil {
+		panic(err)
 	}
-	log.Debugf("merge pflags: %v\n", viper.AllSettings())
-	addr = viper.GetString("address")
-	port = viper.GetInt("port")
-	user := viper.GetString("user")
-	password := viper.GetString("password")
 
-	l2, _ := log.ParseLevel(*logLevel)
+	l2, _ := log.ParseLevel(cfg.Debug)
 	log.SetLevel(l2)
 
 	// Connect to the node
 	var s *netconf.Session
-	if *telnet {
-		transport, err := transports.DialTelnet(addr+":"+strconv.Itoa(port), "lab", "lab", nil)
+	if cfg.Telnet {
+		transport, err := transports.DialTelnet(cfg.Address+":"+strconv.Itoa(cfg.Port), "lab", "lab", nil)
 		if err != nil {
 			panic(err)
 		}
@@ -181,15 +140,15 @@ func main() {
 		}
 	} else {
 		sshConfig := &ssh.ClientConfig{
-			User: user,
+			User: cfg.User,
 			Auth: []ssh.AuthMethod{
-				ssh.Password(password),
+				ssh.Password(cfg.Password),
 			},
 			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		}
 		// s, err = netconf.DialSSH(*addr+":"+strconv.Itoa(*port), sshConfig)
 
-		transport, err := ncssh.Dial(context.Background(), "tcp", addr+":"+strconv.Itoa(port), sshConfig)
+		transport, err := ncssh.Dial(context.Background(), "tcp", cfg.Address+":"+strconv.Itoa(cfg.Port), sshConfig)
 		if err != nil {
 			panic(err)
 		}
