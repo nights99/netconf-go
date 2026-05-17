@@ -215,9 +215,10 @@ func sshToWeb(web net.Conn, ssh *sshNetconfConn) {
 
 func main() {
 	log.SetLevel(log.DebugLevel)
+	// TODO re-use arg parsing from main CLI
 	// var t transport.Transport
 	// user, password := "cisco", "cisco123"
-	user, password := "admin", "C1sco12345"
+	user, password := "jn", "Q-Qi03xF_W6n"
 	sshConfig := &ssh.ClientConfig{
 		User: user,
 		Auth: []ssh.AuthMethod{
@@ -225,6 +226,14 @@ func main() {
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
+	sshConn, err := localDial(context.Background(), "tcp", "sandbox-iosxr-1.cisco.com:830", sshConfig)
+	if err != nil {
+		// t.Close()
+		panic(err)
+	} else {
+		// defer t.Close()
+	}
+	println("Connected to ssh")
 	// init
 	listener, err := net.Listen("tcp", ":12345")
 	if err != nil {
@@ -234,7 +243,7 @@ func main() {
 	for {
 		wg.Add(2)
 
-		println("Waiting for connection...")
+		println("Waiting for websocket connection")
 		conn, err := listener.Accept()
 		if err != nil {
 			// handle error
@@ -243,14 +252,6 @@ func main() {
 		if _, err = upgrader.Upgrade(conn); err != nil {
 			// handle error
 		}
-		sshConn, err := localDial(context.Background(), "tcp", "sandbox-iosxr-1.cisco.com:830", sshConfig)
-		if err != nil {
-			// t.Close()
-			panic(err)
-		} else {
-			// defer t.Close()
-		}
-		println("Connected!")
 		go webToSSH(conn, sshConn)
 		go sshToWeb(conn, sshConn)
 	}
