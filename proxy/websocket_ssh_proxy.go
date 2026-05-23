@@ -7,10 +7,13 @@ import (
 	"context"
 	"io"
 	"net"
+	"netconf-go/internal/cliargs"
+	"strconv"
 	"strings"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/pflag"
 
 	"golang.org/x/crypto/ssh"
 
@@ -214,19 +217,29 @@ func sshToWeb(web net.Conn, ssh *sshNetconfConn) {
 }
 
 func main() {
-	log.SetLevel(log.DebugLevel)
-	// TODO re-use arg parsing from main CLI
-	// var t transport.Transport
-	// user, password := "cisco", "cisco123"
-	user, password := "jn", "Q-Qi03xF_W6n"
+	cliargs.AddFlags(pflag.CommandLine)
+	pflag.Parse()
+
+	cfg, err := cliargs.Load(pflag.CommandLine, ".")
+	if err != nil {
+		panic(err)
+	}
+
+	level, err := log.ParseLevel(cfg.Debug)
+	if err != nil {
+		panic(err)
+	}
+	log.SetLevel(level)
+
+	targetAddr := net.JoinHostPort(cfg.Address, strconv.Itoa(cfg.Port))
 	sshConfig := &ssh.ClientConfig{
-		User: user,
+		User: cfg.User,
 		Auth: []ssh.AuthMethod{
-			ssh.Password(password),
+			ssh.Password(cfg.Password),
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
-	sshConn, err := localDial(context.Background(), "tcp", "sandbox-iosxr-1.cisco.com:830", sshConfig)
+	sshConn, err := localDial(context.Background(), "tcp", targetAddr, sshConfig)
 	if err != nil {
 		// t.Close()
 		panic(err)
