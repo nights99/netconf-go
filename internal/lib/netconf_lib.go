@@ -484,8 +484,8 @@ func GetYangModule(s *netconf.Session, yangMod string) *yang.Module {
 		fmt.Printf("Request reply error1: %v\n", error)
 		return nil
 	}
-	if reply.Errors != nil && len(reply.Errors) > 0 {
-		fmt.Printf("Request reply error1: %v\n", reply.Errors[0])
+	if len(reply.Errors) > 0 {
+		fmt.Printf("Request reply error2: %v\n", reply.Errors[0])
 		return nil
 	}
 	// log.Debugf("Request reply: %v, error: %v\n", reply.Data, error)
@@ -582,6 +582,7 @@ func SendNetconfRequest(s *netconf.Session, requestLine string, requestType type
 		if mods[slice[1]] == nil {
 			mods[slice[1]] = GetYangModule(s, slice[1])
 			if mods[slice[1]] == nil {
+				log.Infof("Couldn't get yang module: %s", slice[1])
 				return "Couldn't get yang module", ""
 			}
 		}

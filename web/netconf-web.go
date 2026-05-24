@@ -149,6 +149,7 @@ func sendNetconfRequest1(this js.Value, args []js.Value) interface{} {
 	default:
 		reqType = types.GetOper
 	}
+	fmt.Printf("sendNetconfRequest1: %v", slice)
 
 	promise := js.Global().Get("Promise").New(js.FuncOf(
 		func(this js.Value, args []js.Value) interface{} {

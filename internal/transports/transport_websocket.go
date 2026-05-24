@@ -43,7 +43,7 @@ func (t *TransportWebSocket) Dial(address string, port int) error {
 
 func (t *TransportWebSocket) Read(p []byte) (int, error) {
 	// println("Read called")
-	ctx, cancel = context.WithTimeout(context.Background(), time.Minute)
+	ctx = context.Background()
 	defer cancel()
 	if t.lastMsg == nil {
 		t.offset = 0

@@ -35,6 +35,26 @@ type sshNetconfConn struct {
 	stdout  io.Reader
 }
 
+type proxySession struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+	web    net.Conn
+	ssh    *sshNetconfConn
+	once   sync.Once
+}
+
+func (ps *proxySession) close() {
+	ps.once.Do(func() {
+		ps.cancel()
+		if ps.web != nil {
+			ps.web.Close()
+		}
+		if ps.ssh != nil {
+			ps.ssh.Close()
+		}
+	})
+}
+
 func (c *sshNetconfConn) Reader() io.Reader {
 	return c.stdout
 }
@@ -92,15 +112,21 @@ func localDial(_ context.Context, network, addr string, config *ssh.ClientConfig
 	}, nil
 }
 
-func webToSSH(web net.Conn, ssh *sshNetconfConn) {
+func webToSSH(ps *proxySession) {
 	defer wg.Done()
-	writer := ssh.Writer()
-	for {
-		payload, err := wsutil.ReadClientBinary(web)
+	writer := ps.ssh.Writer()
 
+	for {
+		select {
+		case <-ps.ctx.Done():
+			return
+		default:
+		}
+
+		payload, err := wsutil.ReadClientBinary(ps.web)
 		if err != nil {
-			log.Print("Failed to wsread: ", err)
-			ssh.Close()
+			log.Printf("web read failed: %v", err)
+			ps.close()
 			return
 		}
 		log.Printf("Ws read: %v\n", string(payload))
@@ -109,52 +135,15 @@ func webToSSH(web net.Conn, ssh *sshNetconfConn) {
 			cond.Wait()
 			cond.L.Unlock()
 		}
-		n, err := writer.Write(payload)
-		if err != nil {
-			log.Print("Failed to ncwrite: ", err)
+
+		if _, err := writer.Write(payload); err != nil {
+			log.Printf("Failed to ncwrite: %v", err)
+			ps.close()
 			return
-		} else {
-			log.Printf("NC write: %d bytes\n", n)
-			if f, ok := writer.(interface{ Flush() error }); ok {
-				f.Flush()
-			}
 		}
-
-		// var output string
-		// if strings.Compare(string(payload), "GetYang") == 0 {
-		// 	// mods := GetModNames2()
-		// 	output = strings.Join(mods, " ")
-		// } else if strings.HasPrefix(string(payload), "GetEntries") {
-		// 	// var mod string
-		// 	// fmt.Sscanf(string(payload), "GetEntries: %s", &mod)
-		// 	args := strings.Split(string(payload), " ")
-		// 	// entries := GetEntries(args[1:])
-		// 	entries = append([]string{":"}, entries...)
-		// 	entries = append(args[1:], entries...)
-		// 	entries = append([]string{"GetEntries"}, entries...)
-		// 	fmt.Printf("GetEntries: %v\n", entries)
-		// 	output = strings.Join(entries, " ")
-		// } else {
-
-		// Each ClientConn can support multiple interactive sessions,
-		// represented by a Session.
-		// session, err := ssh.NewSession()
-		// if err != nil {
-		// 	log.Fatal("Failed to create session: ", err)
-		// }
-		// defer session.Close()
-		// output, err := session.CombinedOutput(string(payload))
-		// if err != nil {
-		// 	// handle err
-		// 	log.Print("Failed to sshout: ", err)
-		// } else {
-		// 	println("SSH output: ", string(output), err)
-		// }
-
-		// err = wsutil.WriteServerText(web, []byte(output))
-		// if err != nil {
-		// 	log.Print("Failed to wsend: ", err)
-		// }
+		if f, ok := writer.(interface{ Flush() error }); ok {
+			f.Flush()
+		}
 	}
 }
 
@@ -164,54 +153,63 @@ const (
 	msgSeperator_v11 = "\n##\n"
 )
 
-func sshToWeb(web net.Conn, ssh *sshNetconfConn) {
+func sshToWeb(ps *proxySession) {
 	defer wg.Done()
 	bytes := make([]byte, 1024*1024)
-	var n, total int
-	// TODO Could we just use io.Copy()?
-	// try_again:
-	reader := ssh.Reader()
+	reader := ps.ssh.Reader()
+
 	for {
+		select {
+		case <-ps.ctx.Done():
+			return
+		default:
+		}
+
+		total := 0
 		var err error
-		total = 0
 		for {
 			log.Debugln("Before read")
-			n, err = reader.Read(bytes[total:])
+			n, readErr := reader.Read(bytes[total:])
 			log.Debugln("After read")
 			if n > 0 {
-				// log.Printf("NC read: got %d bytes: %s\n", n, string(bytes))
-				log.Debugf("NC read: got %d bytes %v\n", n, err)
-				// bytes2 = append(bytes2, bytes[:n]...)
+				log.Debugf("NC read: got %d bytes %v\n", n, readErr)
 				total += n
 				if total > 4096 {
 					log.Printf("NC read: %v \n%v\n", string(bytes), string(bytes[total-4096:total]))
 				} else {
-					log.Printf("NC read: %v\n", string(bytes))
+					log.Printf("NC read: %v\n", string(bytes[:total]))
 				}
-				if strings.Contains(string(bytes), msgSeperator) ||
-					strings.Contains(string(bytes), msgSeperator_v11) ||
-					err == io.EOF {
-					log.Debugf("NC read: got end marker, %v\n", err)
+				if strings.Contains(string(bytes[:total]), msgSeperator) ||
+					strings.Contains(string(bytes[:total]), msgSeperator_v11) ||
+					readErr == io.EOF {
+					log.Debugf("NC read: got end marker, %v\n", readErr)
+					err = readErr
 					break
 				}
-			} else if err != nil {
-				log.Printf("NC read err: %v\n", err)
-				// return
+			}
+			if readErr != nil {
+				log.Printf("NC read err: %v\n", readErr)
+				err = readErr
 				break
-				// reader.Close()
-				// goto try_again
-
 			}
 		}
+
 		if !helloDone {
 			helloDone = true
 			cond.Broadcast()
 		}
-		// log.Printf("Ws write: %d bytes %v\n", total, bytes[total-100:total])
+
 		log.Printf("Ws write: %d bytes\n", total)
-		err = wsutil.WriteServerBinary(web, bytes[:total])
+		if total > 0 {
+			if writeErr := wsutil.WriteServerBinary(ps.web, bytes[:total]); writeErr != nil {
+				log.Printf("WS write err: %v\n", writeErr)
+				ps.close()
+				return
+			}
+		}
 		if err != nil {
-			log.Printf("WS write err: %v\n", err)
+			ps.close()
+			return
 		}
 	}
 }
@@ -254,18 +252,34 @@ func main() {
 		panic(err)
 	}
 	for {
-		wg.Add(2)
-
 		println("Waiting for websocket connection")
 		conn, err := listener.Accept()
 		if err != nil {
-			// handle error
+			log.Printf("accept error: %v", err)
+			continue
 		}
 		upgrader := ws.Upgrader{}
 		if _, err = upgrader.Upgrade(conn); err != nil {
-			// handle error
+			log.Printf("upgrade error: %v", err)
+			conn.Close()
+			continue
 		}
-		go webToSSH(conn, sshConn)
-		go sshToWeb(conn, sshConn)
+
+		ctx, cancel := context.WithCancel(context.Background())
+		ps := &proxySession{
+			ctx:    ctx,
+			cancel: cancel,
+			web:    conn,
+			ssh:    sshConn,
+		}
+
+		wg.Add(2)
+		go webToSSH(ps)
+		go sshToWeb(ps)
+
+		go func() {
+			<-ctx.Done()
+			log.Println("connection closed")
+		}()
 	}
 }
