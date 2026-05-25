@@ -9,8 +9,8 @@ require (
 	github.com/openconfig/goyang v1.6.3
 	github.com/peterh/liner v1.2.2
 	github.com/sirupsen/logrus v1.9.4
-	golang.org/x/crypto v0.51.0
-	golang.org/x/sys v0.44.0 // indirect
+	golang.org/x/crypto v0.52.0
+	golang.org/x/sys v0.45.0 // indirect
 	nhooyr.io/websocket v1.8.17
 )
 
