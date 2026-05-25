@@ -144,6 +144,8 @@ func sendNetconfRequest1(this js.Value, args []js.Value) interface{} {
 	slice = append([]string{args[1].String()}, slice...)
 	var reqType types.RequestType
 	switch args[1].String() {
+	case "edit-conf":
+		reqType = types.EditConf
 	case "commit":
 		reqType = types.Commit
 	default:

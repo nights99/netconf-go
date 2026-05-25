@@ -237,14 +237,6 @@ func main() {
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
-	sshConn, err := localDial(context.Background(), "tcp", targetAddr, sshConfig)
-	if err != nil {
-		// t.Close()
-		panic(err)
-	} else {
-		// defer t.Close()
-	}
-	println("Connected to ssh")
 	// init
 	listener, err := net.Listen("tcp", ":12345")
 	if err != nil {
@@ -252,6 +244,14 @@ func main() {
 		panic(err)
 	}
 	for {
+		sshConn, err := localDial(context.Background(), "tcp", targetAddr, sshConfig)
+		if err != nil {
+			// t.Close()
+			panic(err)
+		} else {
+			// defer t.Close()
+		}
+		println("Connected to ssh")
 		println("Waiting for websocket connection")
 		conn, err := listener.Accept()
 		if err != nil {
