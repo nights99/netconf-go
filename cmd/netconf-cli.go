@@ -134,7 +134,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		s, err = netconf.Open(transport)
+		s, err = netconf.NewSession(transport)
 		if err != nil {
 			panic(err)
 		}
@@ -153,8 +153,15 @@ func main() {
 			panic(err)
 		}
 		defer transport.Close()
-
-		s, err = netconf.Open(transport)
+		// TODO: add a debug capture option to the transport and use it here instead of the logrus debug capture, which is a bit hacky.
+		// Use Logrus Viper Helper?
+		captureFile, err := os.OpenFile("capture.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			panic(err)
+		}
+		defer captureFile.Close()
+		transport.DebugCapture(captureFile, captureFile)
+		s, err = netconf.NewSession(transport)
 		if err != nil {
 			panic(err)
 		}

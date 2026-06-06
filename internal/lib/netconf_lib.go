@@ -1,7 +1,6 @@
 package lib
 
 import (
-	"bytes"
 	"context"
 	"encoding/xml"
 	"fmt"
@@ -16,6 +15,7 @@ import (
 	"github.com/openconfig/goyang/pkg/yang"
 	log "github.com/sirupsen/logrus"
 	netconf "nemith.io/netconf"
+	"nemith.io/netconf/rpc"
 )
 
 type cfgDatastore int
@@ -27,8 +27,13 @@ const (
 )
 
 type yangReply struct {
-	XMLName xml.Name `xml:"data"`
-	Rest    string   `xml:",chardata"`
+	// netconf.RPCReply `xml:"rpc-reply"`
+	// XMLName          xml.Name `xml:"data"`
+	// Rest             string   `xml:",chardata"`
+	netconf.RPCReply
+	Data struct {
+		Rest []byte `xml:",chardata"`
+	} `xml:"data"`
 }
 
 type netconfPathElement struct {
@@ -46,23 +51,26 @@ type netconfRequest struct {
 }
 
 type schemaReply struct {
-	XMLName      xml.Name `xml:"data"`
-	Text         string   `xml:",chardata"`
-	NetconfState struct {
-		Text    string `xml:",chardata"`
-		Xmlns   string `xml:"xmlns,attr"`
-		Schemas struct {
-			Text   string `xml:",chardata"`
-			Schema []struct {
-				Text       string `xml:",chardata"`
-				Identifier string `xml:"identifier"`
-				Version    string `xml:"version"`
-				Format     string `xml:"format"`
-				Namespace  string `xml:"namespace"`
-				Location   string `xml:"location"`
-			} `xml:"schema"`
-		} `xml:"schemas"`
-	} `xml:"netconf-state"`
+	netconf.RPCReply
+	// XMLName      xml.Name `xml:"data"`
+	// Text         string   `xml:",chardata"`
+	Data struct {
+		NetconfState struct {
+			Text    string `xml:",chardata"`
+			Xmlns   string `xml:"xmlns,attr"`
+			Schemas struct {
+				Text   string `xml:",chardata"`
+				Schema []struct {
+					Text       string `xml:",chardata"`
+					Identifier string `xml:"identifier"`
+					Version    string `xml:"version"`
+					Format     string `xml:"format"`
+					Namespace  string `xml:"namespace"`
+					Location   string `xml:"location"`
+				} `xml:"schema"`
+			} `xml:"schemas"`
+		} `xml:"netconf-state"`
+	} `xml:"data"`
 }
 
 var ms *yang.Modules = yang.NewModules()
@@ -472,31 +480,32 @@ func GetYangModule(s *netconf.Session, yangMod string) *yang.Module {
 	 * Get the yang module from XR and read it into the map
 	 */
 	log.Debug("Getting: ", yangMod)
-	reply, error := s.Do(context.Background(),
+	yangReply := yangReply{}
+	error := s.Exec(context.Background(),
 		`<get-schema
 		 xmlns="urn:ietf:params:xml:ns:yang:ietf-netconf-monitoring">
 	 <identifier>`+
 			yangMod+
 			`</identifier>
 		 </get-schema>
-	 `)
+	 `, &yangReply)
 	if error != nil {
 		fmt.Printf("Request reply error1: %v\n", error)
 		return nil
 	}
-	if len(reply.Errors) > 0 {
-		fmt.Printf("Request reply error2: %v\n", reply.Errors[0])
-		return nil
-	}
-	// log.Debugf("Request reply: %v, error: %v\n", reply.Data, error)
+	// if len(reply.RPCErrors) > 0 {
+	// 	fmt.Printf("Request reply error2: %v\n", reply.Errors[0])
+	// 	return nil
+	// }
+	// log.Debugf("Request reply: %v, error: %v\n", string(yangReply.Data.Rest), error)
+	os.WriteFile("foo.log", yangReply.Data.Rest, 0644)
 	// re, _ := regexp.Compile("\n#[0-9]+\n")
 	// strs := re.FindAllStringSubmatch(reply.Data, 10)
 	// fmt.Printf("%v\n", strs)
 	// reply.Data = re.ReplaceAllLiteralString(reply.Data, "")
-	yangReply := yangReply{}
-	_ = xml.Unmarshal([]byte(reply.Body), &yangReply)
+	// _ = xml.Unmarshal([]byte(reply.Body), &yangReply)
 	//fmt.Printf("Request reply: %v, error: %v\n", yangReply, err)
-	err := ms.Parse(yangReply.Rest, yangMod)
+	err := ms.Parse(string(yangReply.Data.Rest), yangMod)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		panic("Error")
@@ -547,7 +556,7 @@ func GetYangModule(s *netconf.Session, yangMod string) *yang.Module {
 		ms.SubModules[ms.SubModules[yangMod].FullName()] = nil
 	}
 	//mods[yangMod] = getYangModule(globalSession, yangMod)
-	err = ms.Parse(yangReply.Rest, yangMod)
+	err = ms.Parse(string(yangReply.Data.Rest), yangMod)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		panic("Error")
@@ -636,27 +645,29 @@ func SendNetconfRequest(s *netconf.Session, requestLine string, requestType type
 	// 	fmt.Print(diff.LineDiff(string(xml3), string(myxml)))
 	// log.Debugf("Request reply: %s, error: %v\n", reply, error)
 	var theString string
-	var reply *netconf.Reply = nil
+	var reply *netconf.Message = nil
 
 	if requestType == types.Commit {
-		error = s.Commit(context.Background())
+		// error = s.Commit(context.Background())
+		error = s.Exec(context.Background(), rpc.Commit{}, nil)
 		log.Debugf("Request reply: %v, error: %v\n", reply, error)
 	} else if requestType == types.Validate {
-		error = s.Validate(context.Background(), netconf.Candidate)
+		// error = s.Validate(context.Background(), netconf.Candidate)
+		error = s.Exec(context.Background(), rpc.Validate{Source: rpc.Candidate}, nil)
 		log.Debugf("Request reply: %v, error: %v\n", reply, error)
 		// } else if requestType == getConf || requestType == getOper {
 	} else {
 		rpc := ncRequest
-		reply, error = s.Do(context.Background(), &rpc)
+		reply, error = s.Do(context.Background(), &netconf.RPC{Operation: &rpc})
 		if error != nil {
 			fmt.Printf("Request reply: %v, error: %v\n", reply, error)
 			return "", ""
 		}
-		log.Debugf("Request reply: data: %s\n", string(reply.Body))
+		// log.Debugf("Request reply: data: %s\n", string(reply.Body))
 	}
 
 	if reply != nil {
-		dec := xml.NewDecoder(bytes.NewReader(reply.Body))
+		dec := xml.NewDecoder(reply)
 		var tok xml.Token
 		var lastString string
 		var seenFirstEnd bool
@@ -687,7 +698,15 @@ func SendNetconfRequest(s *netconf.Session, requestLine string, requestType type
 	}
 
 	if reply != nil {
-		return string(reply.Body), theString
+		// var sb strings.Builder
+
+		// _, err := io.Copy(&sb, reply)
+		// if err != nil {
+		// 	return "", ""
+		// }
+
+		// return sb.String(), theString
+		return "", theString
 	} else if error != nil {
 		fmt.Printf("Error: %v\n", error.Error())
 		return error.Error(), ""
@@ -700,30 +719,31 @@ func GetSchemaList(s *netconf.Session) []string {
 	/*
 	 * Get a list of schemas
 	 */
-	reply, error := s.Do(context.Background(), `<get>
+	schemaReply := schemaReply{}
+	error := s.Exec(context.Background(), `<get>
     <filter type="subtree">
       <netconf-state xmlns="urn:ietf:params:xml:ns:yang:ietf-netconf-monitoring">
         <schemas/>
       </netconf-state>
     </filter>
-    </get>`)
+    </get>`, &schemaReply)
 	if error != nil {
 		fmt.Printf("Request reply error2: %v\n", error)
 		// panic(error)
 		return nil
 	}
 	// fmt.Printf("Request reply: %v, error: %v\n", reply.Data[0:1000], error)
-	schemaReply := schemaReply{}
-	error = xml.Unmarshal([]byte(reply.Body), &schemaReply)
-	//fmt.Printf("Request reply: %v, error: %v\n", schemaReply.Rest.Rest.Schemas[0], err)
-	//fmt.Printf("Request reply: %v, error: %v\n", schemaReply.Rest.Rest.Schemas[99].Identifier, err)
+	// error = xml.Unmarshal([]byte(reply.Body), &schemaReply)
+	// fmt.Printf("Request reply: %v, error: %v\n", schemaReply.Rest.Rest.Schemas[0], err)
+	// fmt.Printf("Request reply: %v, error: %v\n", schemaReply.Rest.Rest.Schemas[99].Identifier, err)
+	fmt.Printf("GetSchemaList: got %d schemas\n", len(schemaReply.Data.NetconfState.Schemas.Schema))
 	if error != nil {
 		fmt.Printf("Request reply error3: %v\n", error)
 	}
 
 	var schStrings []string
 	// for _, sch := range schemaReply.Rest.Rest.Schemas {
-	for _, sch := range schemaReply.NetconfState.Schemas.Schema {
+	for _, sch := range schemaReply.Data.NetconfState.Schemas.Schema {
 		schStrings = append(schStrings, sch.Identifier)
 	}
 

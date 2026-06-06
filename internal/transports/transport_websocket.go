@@ -133,7 +133,7 @@ func DialWebSocket(address string, port int) (*netconf.Session, error) {
 		// t.Close()
 		return nil, err
 	}
-	session, err := netconf.Open(&t)
+	session, err := netconf.NewSession(&t)
 	if err != nil {
 		panic(err)
 	}
