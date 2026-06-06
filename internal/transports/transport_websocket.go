@@ -11,13 +11,10 @@ import (
 	"net"
 	"strconv"
 
-	// "syscall/js"
 	"time"
 
-	// netconf "github.com/nemith/go-netconf/v2"
-	// "github.com/nemith/go-netconf/v2/transport"
-	netconf "github.com/nemith/netconf"
-	"github.com/nemith/netconf/transport"
+	netconf "nemith.io/netconf"
+	"nemith.io/netconf/transport"
 	"nhooyr.io/websocket"
 )
 

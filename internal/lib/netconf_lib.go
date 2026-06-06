@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	netconf "github.com/nemith/netconf"
 	"github.com/openconfig/goyang/pkg/yang"
 	log "github.com/sirupsen/logrus"
+	netconf "nemith.io/netconf"
 )
 
 type cfgDatastore int

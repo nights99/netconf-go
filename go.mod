@@ -5,20 +5,20 @@ go 1.25.0
 require (
 	github.com/chzyer/readline v1.5.1
 	github.com/gobwas/ws v1.4.0
-	github.com/mattn/go-runewidth v0.0.23 // indirect
+	github.com/mattn/go-runewidth v0.0.24 // indirect
 	github.com/openconfig/goyang v1.6.3
 	github.com/peterh/liner v1.2.2
 	github.com/sirupsen/logrus v1.9.4
-	golang.org/x/crypto v0.51.0
-	golang.org/x/sys v0.44.0 // indirect
+	golang.org/x/crypto v0.52.0
+	golang.org/x/sys v0.45.0 // indirect
 	nhooyr.io/websocket v1.8.17
 )
 
 require (
-	github.com/nemith/netconf v0.0.2
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
 	github.com/ziutek/telnet v0.1.0
+	nemith.io/netconf v0.0.4
 )
 
 require (
@@ -36,7 +36,6 @@ require (
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/exp v0.0.0-20260508232706-74f9aab9d74a // indirect
 	golang.org/x/text v0.37.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 )

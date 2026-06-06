@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	// "github.com/nemith/go-netconf/v2/transport"
-	"github.com/nemith/netconf/transport"
 	"github.com/ziutek/telnet"
+	"nemith.io/netconf/transport"
 )
 
 const (

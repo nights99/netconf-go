@@ -23,12 +23,12 @@ import (
 	"github.com/chzyer/readline"
 	// netconf "github.com/nemith/go-netconf/v2"
 	// ncssh "github.com/nemith/go-netconf/v2/transport/ssh"
-	netconf "github.com/nemith/netconf"
-	ncssh "github.com/nemith/netconf/transport/ssh"
 	"github.com/peterh/liner"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"golang.org/x/crypto/ssh"
+	netconf "nemith.io/netconf"
+	ncssh "nemith.io/netconf/transport/ssh"
 )
 
 // Array of available Yang modules

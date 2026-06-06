@@ -4,17 +4,14 @@
 package transports // Changed package name
 
 import (
-	"fmt"
-	"strings"
 	"testing"
 
-	netconf "github.com/nemith/netconf"
-	"github.com/stretchr/testify/assert"
+	netconf "nemith.io/netconf"
 )
 
 // Run with go test -v -count=1 transport_websocket_test.go netconf_lib.go xr_completions.go transport_websocket.go
 
-var modNames []string // Assuming this would be defined or removed if test was fully refactored
+var modNames []string              // Assuming this would be defined or removed if test was fully refactored
 var globalSession *netconf.Session // Assuming this would be defined or removed
 
 // getSchemaList and listYang are assumed to be external helper functions.

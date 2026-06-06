@@ -5,8 +5,8 @@ import (
 	"netconf-go/internal/types"
 	"strings"
 
-	"github.com/nemith/netconf"
 	log "github.com/sirupsen/logrus"
+	"nemith.io/netconf"
 )
 
 type intfReply struct {

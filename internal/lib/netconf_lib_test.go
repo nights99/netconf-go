@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	netconf "github.com/nemith/netconf"
 	"github.com/openconfig/goyang/pkg/yang"
+	netconf "nemith.io/netconf"
 )
 
 func TestMain(m *testing.M) {
@@ -79,8 +79,8 @@ func Test_newNetconfRequest(t *testing.T) {
 			want: &netconfRequest{
 				ncEntry: &yang.Entry{Name: "interface"},
 				NetConfPath: []netconfPathElement{
-						{name: "interfaces", value: nil, delete: false},
-						{name: "interface[name", value: func() *string { s := "eth0]"; return &s }(), delete: false},
+					{name: "interfaces", value: nil, delete: false},
+					{name: "interface[name", value: func() *string { s := "eth0]"; return &s }(), delete: false},
 					{name: "description", value: nil, delete: false},
 				},
 				Value:   "My interface",
@@ -99,9 +99,9 @@ func Test_newNetconfRequest(t *testing.T) {
 			want: &netconfRequest{
 				ncEntry: &yang.Entry{Name: "interface"},
 				NetConfPath: []netconfPathElement{
-						{name: "interfaces", value: nil, delete: false},
-						{name: "interface[name", value: func() *string { s := "eth0]"; return &s }(), delete: false},
-						{name: "mtu", value: nil, delete: true},
+					{name: "interfaces", value: nil, delete: false},
+					{name: "interface[name", value: func() *string { s := "eth0]"; return &s }(), delete: false},
+					{name: "mtu", value: nil, delete: true},
 				},
 				Value:   "",
 				reqType: types.EditConf,
@@ -158,7 +158,6 @@ func Test_newNetconfRequest(t *testing.T) {
 			} else if tt.args.netconfEntry.Name != "" && expectedRequest.ncEntry != nil && expectedRequest.ncEntry.Name == "" {
 				expectedRequest.ncEntry.Name = tt.args.netconfEntry.Name
 			}
-
 
 			got := newNetconfRequest(&tt.args.netconfEntry, tt.args.Path, tt.args.value, tt.args.requestType, tt.args.delete)
 
@@ -311,7 +310,7 @@ func Test_netconfRequest_MarshalMethod(t *testing.T) {
 			name: "GetConf with filter (empty store.Root)",
 			fields: fields{
 				ncEntry:     yang.Entry{Name: "interfaces"}, // ncEntry presence triggers <filter> tag
-				NetConfPath: []netconfPathElement{},      // store.Root will be empty
+				NetConfPath: []netconfPathElement{},         // store.Root will be empty
 				Value:       "",
 				reqType:     types.GetConf,
 			},
