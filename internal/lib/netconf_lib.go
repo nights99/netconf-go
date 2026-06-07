@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
+	"io"
 
 	"netconf-go/internal/types"
 	"netconf-go/internal/xmlstore"
@@ -658,6 +659,7 @@ func SendNetconfRequest(s *netconf.Session, requestLine string, requestType type
 		// } else if requestType == getConf || requestType == getOper {
 	} else {
 		rpc := ncRequest
+		// TODO: Use Exec instead, parse value from decoded struct.
 		reply, error = s.Do(context.Background(), &netconf.RPC{Operation: &rpc})
 		if error != nil {
 			fmt.Printf("Request reply: %v, error: %v\n", reply, error)
@@ -666,7 +668,7 @@ func SendNetconfRequest(s *netconf.Session, requestLine string, requestType type
 		// log.Debugf("Request reply: data: %s\n", string(reply.Body))
 	}
 
-	if reply != nil {
+	if false && reply != nil {
 		dec := xml.NewDecoder(reply)
 		var tok xml.Token
 		var lastString string
@@ -698,15 +700,15 @@ func SendNetconfRequest(s *netconf.Session, requestLine string, requestType type
 	}
 
 	if reply != nil {
-		// var sb strings.Builder
+		var sb strings.Builder
 
-		// _, err := io.Copy(&sb, reply)
-		// if err != nil {
-		// 	return "", ""
-		// }
+		_, err := io.Copy(&sb, reply)
+		if err != nil {
+			return "", ""
+		}
+		reply.Close()
 
-		// return sb.String(), theString
-		return "", theString
+		return sb.String(), theString
 	} else if error != nil {
 		fmt.Printf("Error: %v\n", error.Error())
 		return error.Error(), ""
