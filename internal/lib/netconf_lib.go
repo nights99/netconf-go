@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"bytes"
 	"context"
 	"encoding/xml"
 	"fmt"
@@ -668,47 +669,41 @@ func SendNetconfRequest(s *netconf.Session, requestLine string, requestType type
 		// log.Debugf("Request reply: data: %s\n", string(reply.Body))
 	}
 
-	if false && reply != nil {
-		dec := xml.NewDecoder(reply)
-		var tok xml.Token
-		var lastString string
-		var seenFirstEnd bool
-		seenFirstEnd = false
-		for {
-			tok, error = dec.Token()
-			// fmt.Printf("Token: %T %v\n", tok, error)
-			switch v := tok.(type) {
-			case xml.CharData:
-				// fmt.Printf("Token: %v %v\n", string(v), error)
-				lastString = string(v)
-				// theString = lastString
-			case xml.EndElement:
-				if !seenFirstEnd {
-					seenFirstEnd = true
-					theString = lastString
-				}
-
-			default:
-				// fmt.Printf("Token: %v %v\n", v, error)
-			}
-			if tok == nil {
-				break
-			}
-		}
-		// TODO Handle bool/presence type items
-		fmt.Println("Data: ", theString)
-	}
-
 	if reply != nil {
-		var sb strings.Builder
-
-		_, err := io.Copy(&sb, reply)
+		replyBytes, err := io.ReadAll(reply)
+		reply.Close()
 		if err != nil {
 			return "", ""
 		}
-		reply.Close()
 
-		return sb.String(), theString
+		if len(replyBytes) > 0 {
+			dec := xml.NewDecoder(bytes.NewReader(replyBytes))
+			var tok xml.Token
+			var lastString string
+			var seenFirstEnd bool
+			for {
+				tok, err = dec.Token()
+				if err != nil {
+					if err == io.EOF {
+						break
+					}
+					return "", ""
+				}
+				switch v := tok.(type) {
+				case xml.CharData:
+					lastString = string(v)
+				case xml.EndElement:
+					if !seenFirstEnd {
+						seenFirstEnd = true
+						theString = lastString
+					}
+				}
+			}
+			// TODO Handle bool/presence type items
+			fmt.Println("Data: ", theString)
+		}
+
+		return string(replyBytes), theString
 	} else if error != nil {
 		fmt.Printf("Error: %v\n", error.Error())
 		return error.Error(), ""
