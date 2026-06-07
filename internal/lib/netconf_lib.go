@@ -500,13 +500,6 @@ func GetYangModule(s *netconf.Session, yangMod string) *yang.Module {
 	// 	return nil
 	// }
 	// log.Debugf("Request reply: %v, error: %v\n", string(yangReply.Data.Rest), error)
-	os.WriteFile("foo.log", yangReply.Data.Rest, 0644)
-	// re, _ := regexp.Compile("\n#[0-9]+\n")
-	// strs := re.FindAllStringSubmatch(reply.Data, 10)
-	// fmt.Printf("%v\n", strs)
-	// reply.Data = re.ReplaceAllLiteralString(reply.Data, "")
-	// _ = xml.Unmarshal([]byte(reply.Body), &yangReply)
-	//fmt.Printf("Request reply: %v, error: %v\n", yangReply, err)
 	err := ms.Parse(string(yangReply.Data.Rest), yangMod)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
