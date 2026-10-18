@@ -42,7 +42,7 @@ require (
 
 // go mod edit -replace github.com/openconfig/goyang=github.com/nights99/goyang@dynamic_read
 // replace github.com/openconfig/goyang => ./goyang
-replace github.com/openconfig/goyang => github.com/nights99/goyang dynamic_read
+replace github.com/openconfig/goyang => github.com/nights99/goyang v0.2.5-0.20261018150731-87a5ad3c511e
 
 // replace github.com/peterh/liner => ./src/github.com/peterh/liner
 

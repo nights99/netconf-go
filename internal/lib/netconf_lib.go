@@ -652,9 +652,8 @@ func SendNetconfRequest(s *netconf.Session, requestLine string, requestType type
 		log.Debugf("Request reply: %v, error: %v\n", reply, error)
 		// } else if requestType == getConf || requestType == getOper {
 	} else {
-		rpc := ncRequest
 		// TODO: Use Exec instead, parse value from decoded struct.
-		reply, error = s.Do(context.Background(), &netconf.RPC{Operation: &rpc})
+		reply, error = s.Do(context.Background(), &netconf.RPC{Operation: ncRequest})
 		if error != nil {
 			fmt.Printf("Request reply: %v, error: %v\n", reply, error)
 			return "", ""
